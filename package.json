@@ -1,0 +1,349 @@
+{
+  "name": "vscode-translation-plugin",
+  "displayName": "Translation",
+  "description": "强大的翻译插件：多引擎翻译(Google/微软/DeepL/OpenAI/有道/百度)、翻译替换、翻译文档、单词本、翻译历史、语音朗读、自动取词",
+  "version": "0.2.4",
+  "publisher": "vscode-translation-plugin",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "translate",
+    "translation",
+    "翻译",
+    "dictionary",
+    "wordbook"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/1321840134/vscode-translation-plugin"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "translation.showDialog",
+        "title": "翻译: 打开翻译对话框"
+      },
+      {
+        "command": "translation.translate",
+        "title": "翻译: 翻译(选中文本或光标处单词)"
+      },
+      {
+        "command": "translation.translateAndReplace",
+        "title": "翻译: 翻译并替换"
+      },
+      {
+        "command": "translation.translateDocument",
+        "title": "翻译: 翻译文档(在新窗口打开)"
+      },
+      {
+        "command": "translation.switchEngine",
+        "title": "翻译: 切换翻译引擎"
+      },
+      {
+        "command": "translation.selectTargetLanguage",
+        "title": "翻译: 选择目标语言"
+      },
+      {
+        "command": "translation.selectSourceLanguage",
+        "title": "翻译: 选择源语言"
+      },
+      {
+        "command": "translation.showWordBook",
+        "title": "翻译: 打开单词本"
+      },
+      {
+        "command": "translation.showHistory",
+        "title": "翻译: 打开翻译历史"
+      },
+      {
+        "command": "translation.clearHistory",
+        "title": "翻译: 清空翻译历史"
+      },
+      {
+        "command": "translation.exportWordBook",
+        "title": "翻译: 导出单词本"
+      },
+      {
+        "command": "translation.wordOfTheDay",
+        "title": "翻译: 每日一词"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "translation.translate",
+        "key": "ctrl+shift+y",
+        "mac": "ctrl+cmd+u",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "translation.showDialog",
+        "key": "ctrl+alt+o",
+        "mac": "ctrl+cmd+i"
+      },
+      {
+        "command": "translation.translateAndReplace",
+        "key": "ctrl+alt+x",
+        "mac": "ctrl+cmd+o",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "translation.switchEngine",
+        "key": "ctrl+alt+s",
+        "mac": "ctrl+cmd+y"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "translation.translate",
+          "when": "editorTextFocus",
+          "group": "translation@1"
+        },
+        {
+          "command": "translation.translateAndReplace",
+          "when": "editorTextFocus",
+          "group": "translation@2"
+        },
+        {
+          "command": "translation.translateDocument",
+          "when": "editorTextFocus",
+          "group": "translation@3"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Translation Plugin",
+      "properties": {
+        "translation.engine": {
+          "type": "string",
+          "enum": [
+            "microsoft",
+            "google",
+            "deepl",
+            "openai",
+            "youdao",
+            "baidu"
+          ],
+          "default": "microsoft",
+          "description": "默认翻译引擎（微软翻译使用 Edge 公开端点，免费无需配置；Google 免费无需配置；其余需配置对应密钥）"
+        },
+        "translation.sourceLanguage": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "zh-CN",
+            "zh-TW",
+            "en",
+            "ja",
+            "ko",
+            "fr",
+            "de",
+            "ru",
+            "es",
+            "pt",
+            "it",
+            "ar",
+            "th",
+            "vi",
+            "id",
+            "ms",
+            "tr",
+            "nl",
+            "pl",
+            "sv"
+          ],
+          "default": "auto",
+          "description": "源语言（auto 为自动检测）"
+        },
+        "translation.targetLanguage": {
+          "type": "string",
+          "enum": [
+            "zh-CN",
+            "zh-TW",
+            "en",
+            "ja",
+            "ko",
+            "fr",
+            "de",
+            "ru",
+            "es",
+            "pt",
+            "it",
+            "ar",
+            "th",
+            "vi",
+            "id",
+            "ms",
+            "tr",
+            "nl",
+            "pl",
+            "sv"
+          ],
+          "default": "zh-CN",
+          "description": "目标语言"
+        },
+        "translation.autoSelectWord": {
+          "type": "boolean",
+          "default": true,
+          "description": "未选中任何文本时，自动提取光标处的单词进行翻译（智能驼峰取词）"
+        },
+        "translation.autoSwapTarget": {
+          "type": "boolean",
+          "default": true,
+          "description": "当源语言与目标语言相同时，自动切换目标语言（中文↔英文），避免出现中译中/英译英"
+        },
+        "translation.autoTranslateSelection": {
+          "type": "boolean",
+          "default": false,
+          "description": "选中文本后自动翻译（防抖 600ms，结果静默更新到翻译面板）"
+        },
+        "translation.hover.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "悬浮翻译：鼠标悬停在单词上时显示词典翻译（含音标/释义）"
+        },
+        "translation.hover.translateDocumentation": {
+          "type": "boolean",
+          "default": true,
+          "description": "悬浮时同时翻译文档注释内容（合并内置悬浮提示并追加译文）"
+        },
+        "translation.history.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "记录翻译历史"
+        },
+        "translation.history.limit": {
+          "type": "number",
+          "default": 200,
+          "description": "翻译历史最大条数"
+        },
+        "translation.tts.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "启用语音朗读"
+        },
+        "translation.tts.autoPlay": {
+          "type": "boolean",
+          "default": false,
+          "description": "翻译完成后自动朗读原文"
+        },
+        "translation.tts.service": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "edge",
+            "google"
+          ],
+          "default": "auto",
+          "description": "语音合成服务：auto = Edge 神经网络语音优先、失败回退 Google；edge/google = 强制指定"
+        },
+        "translation.replace.style": {
+          "type": "string",
+          "enum": [
+            "original",
+            "camelCase",
+            "PascalCase",
+            "snake_case",
+            "kebab-case",
+            "space"
+          ],
+          "default": "original",
+          "description": "翻译并替换：目标语言为英文时译文格式化样式"
+        },
+        "translation.replace.separator": {
+          "type": "string",
+          "default": " ",
+          "description": "翻译并替换：样式为 space 时使用的单词分隔符"
+        },
+        "translation.panel.position": {
+          "type": "string",
+          "enum": [
+            "beside",
+            "active",
+            "one",
+            "two"
+          ],
+          "default": "beside",
+          "description": "翻译面板打开的位置"
+        },
+        "translation.google.host": {
+          "type": "string",
+          "default": "translate.googleapis.com",
+          "description": "Google 翻译接口域名（可修改为可用的镜像域名）"
+        },
+        "translation.deepl.authKey": {
+          "type": "string",
+          "default": "",
+          "description": "DeepL 身份验证密钥（DeepL API Free 的密钥以 :fx 结尾）"
+        },
+        "translation.microsoft.subscriptionKey": {
+          "type": "string",
+          "default": "",
+          "description": "可选：Azure Text Translation 订阅密钥（不填则自动使用 Edge 免费翻译端点）"
+        },
+        "translation.microsoft.region": {
+          "type": "string",
+          "default": "",
+          "description": "微软翻译服务区域，如 global、eastasia"
+        },
+        "translation.openai.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API Key"
+        },
+        "translation.openai.model": {
+          "type": "string",
+          "default": "gpt-4o-mini",
+          "description": "OpenAI 翻译使用的模型"
+        },
+        "translation.openai.apiBase": {
+          "type": "string",
+          "default": "https://api.openai.com/v1",
+          "description": "OpenAI API 地址（可改为兼容接口）"
+        },
+        "translation.youdao.appKey": {
+          "type": "string",
+          "default": "",
+          "description": "有道智云应用 ID"
+        },
+        "translation.youdao.appSecret": {
+          "type": "string",
+          "default": "",
+          "description": "有道智云应用密钥"
+        },
+        "translation.baidu.appId": {
+          "type": "string",
+          "default": "",
+          "description": "百度翻译 APP ID"
+        },
+        "translation.baidu.appSecret": {
+          "type": "string",
+          "default": "",
+          "description": "百度翻译密钥"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "icon": "node scripts/svg2png.mjs C:\\Users\\CL\\Desktop\\default.svg"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.75.0",
+    "typescript": "^5.4.0"
+  }
+}

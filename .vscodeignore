@@ -1,0 +1,11 @@
+.vscode/**
+src/**
+scripts/**
+node_modules/**
+out/**/*.map
+**/*.ts
+**/*.md
+!README.md
+!CHANGELOG.md
+!LICENSE
+.gitignore
