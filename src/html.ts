@@ -137,6 +137,7 @@ kbd {
   var autoPlay = false;
   var historyData = [];
   var wordData = [];
+  var currentAudio = null;
 
   function matchesQuery(haystack, q) {
     q = (q || '').trim();
@@ -398,6 +399,8 @@ kbd {
       case 'init':
         languages = m.languages || [];
         autoPlay = !!m.autoPlay;
+        if (m.from) { state.from = m.from; }
+        if (m.to) { state.to = m.to; }
         populateLangs();
         if (m.query) { $('query').value = m.query; state.query = m.query; }
         if (m.results) { renderResults(m.results); }
@@ -406,6 +409,7 @@ kbd {
       case 'results':
         setLoading(false);
         renderResults(m.results);
+        if (m.query) { $('query').value = m.query; }
         if (autoPlay && m.results && m.results.length && m.results[0].query) {
           send('speak', { text: m.results[0].query, lang: m.results[0].from });
         }
@@ -425,8 +429,9 @@ kbd {
         break;
       case 'tts':
         try {
-          var audio = new Audio(m.uri);
-          audio.play();
+          if (currentAudio) { try { currentAudio.pause(); } catch (e) { /* 忽略 */ } }
+          currentAudio = new Audio(m.uri);
+          currentAudio.play();
         } catch (e) { /* 忽略播放失败 */ }
         break;
       case 'setTab':

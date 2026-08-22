@@ -108,7 +108,14 @@ class TranslationPanel {
     }
 
     private refreshResults(): void {
-        this.post({ type: 'results', results: lastState.results.map(r => ({ ...r, starred: storage.hasWord(r.query, r.to) })) });
+        this.post({
+            type: 'results',
+            results: lastState.results.map(r => ({
+                ...r,
+                starred: storage.hasWord(r.query, r.to)
+            })),
+            query: lastState.query
+        });
     }
 
     private async handle(msg: { type?: string } & Record<string, unknown>): Promise<void> {

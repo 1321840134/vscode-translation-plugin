@@ -70,6 +70,21 @@ export class Storage {
         }, 200);
     }
 
+    /** 立即同步写盘（防抖窗口内退出时由 deactivate 调用，避免丢数据） */
+    flush(): void {
+        if (this.saveTimer) {
+            clearTimeout(this.saveTimer);
+            this.saveTimer = undefined;
+        }
+        if (this.file) {
+            try {
+                fs.writeFileSync(this.file, JSON.stringify(this.data, null, 2), 'utf8');
+            } catch (e) {
+                // 忽略写入失败
+            }
+        }
+    }
+
     // ---- 单词本 ----
 
     hasWord(text: string, to: string): boolean {

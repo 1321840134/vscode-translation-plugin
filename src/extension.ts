@@ -334,5 +334,5 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {
-    // 无需清理
+    storage.flush();
 }

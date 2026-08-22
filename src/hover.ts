@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { AsyncLocalStorage } from 'async_hooks';
 import * as config from './config';
 import { AUTO, langName } from './languages';
 import { TranslationResult, translateQuery } from './services';
@@ -10,8 +11,8 @@ import { wordAtPosition } from './word';
  * - 悬停处有文档注释（内置 Hover 内容）：追加整段文档的翻译
  */
 
-/** 防止 executeHoverProvider 递归触发自身 */
-let mergingDocs = false;
+/** 防止 executeHoverProvider 递归触发自身（异步上下文隔离，并发 hover 互不影响） */
+const hoverContext = new AsyncLocalStorage<{ merging: boolean }>();
 
 export class TranslationHoverProvider implements vscode.HoverProvider {
     async provideHover(
@@ -19,7 +20,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         position: vscode.Position,
         token: vscode.CancellationToken
     ): Promise<vscode.Hover | undefined> {
-        if (mergingDocs || !config.hoverEnabled()) {
+        if (hoverContext.getStore()?.merging || !config.hoverEnabled()) {
             return undefined;
         }
         const word = wordAtPosition(document, position);
@@ -62,13 +63,14 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
 
         // 文档翻译：合并并翻译内置悬浮内容（IDEA 插件的"文档翻译"对应能力）
         if (config.hoverTranslateDocs()) {
-            mergingDocs = true;
-            try {
-                const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+            const hovers = await hoverContext.run({ merging: true }, () =>
+                vscode.commands.executeCommand<vscode.Hover[]>(
                     'vscode.executeHoverProvider',
                     document.uri,
                     position
-                );
+                )
+            );
+            try {
                 const docText = extractPlainText(hovers);
                 if (
                     docText &&
@@ -86,8 +88,6 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
                 }
             } catch {
                 // 忽略文档合并失败
-            } finally {
-                mergingDocs = false;
             }
         }
 
@@ -113,9 +113,11 @@ function extractPlainText(hovers: vscode.Hover[] | undefined): string {
                     : c && typeof (c as vscode.MarkdownString).value === 'string'
                         ? (c as vscode.MarkdownString).value
                         : '';
-            if (text) {
-                parts.push(text);
+            // 跳过本插件自己产生的悬浮内容，避免并发 hover 时被当作文档二次翻译
+            if (!text || text.includes('$(translations)')) {
+                continue;
             }
+            parts.push(text);
         }
     }
     return parts
