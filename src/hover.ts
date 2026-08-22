@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { AsyncLocalStorage } from 'async_hooks';
 import * as config from './config';
 import { AUTO, langName } from './languages';
 import { TranslationResult, translateQuery } from './services';
@@ -11,8 +10,14 @@ import { wordAtPosition } from './word';
  * - 悬停处有文档注释（内置 Hover 内容）：追加整段文档的翻译
  */
 
-/** 防止 executeHoverProvider 递归触发自身（异步上下文隔离，并发 hover 互不影响） */
-const hoverContext = new AsyncLocalStorage<{ merging: boolean }>();
+/**
+ * 防止 executeHoverProvider 递归触发自身。
+ * 注意：不能依赖 AsyncLocalStorage——其上下文无法跨过 vscode 命令
+ * 执行边界传播，会导致防护失效、无限递归（悬浮永久加载中）。
+ * 并发 hover 时本标志可能互相干扰（最坏情况为跳过一次文档翻译），
+ * 由 extractPlainText 的自身内容过滤兜底。
+ */
+let mergingDocs = false;
 
 export class TranslationHoverProvider implements vscode.HoverProvider {
     async provideHover(
@@ -20,7 +25,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         position: vscode.Position,
         token: vscode.CancellationToken
     ): Promise<vscode.Hover | undefined> {
-        if (hoverContext.getStore()?.merging || !config.hoverEnabled()) {
+        if (mergingDocs || !config.hoverEnabled()) {
             return undefined;
         }
         const word = wordAtPosition(document, position);
@@ -28,16 +33,12 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
             return undefined;
         }
         const to = config.targetLanguage();
-        // 悬浮被取消（鼠标移走）时中止底层网络请求，避免划词时堆积请求
-        const controller = new AbortController();
-        const disposableView = token.onCancellationRequested(() => controller.abort());
+
         let wordResult: TranslationResult;
         try {
-            wordResult = await translateQuery(word.query, AUTO, to, undefined, controller.signal);
+            wordResult = await translateQuery(word.query, AUTO, to);
         } catch {
             return undefined;
-        } finally {
-            disposableView.dispose();
         }
         if (token.isCancellationRequested) {
             return undefined;
@@ -67,14 +68,13 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
 
         // 文档翻译：合并并翻译内置悬浮内容（IDEA 插件的"文档翻译"对应能力）
         if (config.hoverTranslateDocs()) {
-            const hovers = await hoverContext.run({ merging: true }, () =>
-                vscode.commands.executeCommand<vscode.Hover[]>(
+            mergingDocs = true;
+            try {
+                const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
                     'vscode.executeHoverProvider',
                     document.uri,
                     position
-                )
-            );
-            try {
+                );
                 const docText = extractPlainText(hovers);
                 if (
                     docText &&
@@ -92,6 +92,8 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
                 }
             } catch {
                 // 忽略文档合并失败
+            } finally {
+                mergingDocs = false;
             }
         }
 
