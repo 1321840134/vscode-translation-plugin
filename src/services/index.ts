@@ -59,17 +59,17 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
     }
 }
 
-export async function translateQuery(
-    text: string,
-    from: string,
-    to: string,
-    engineId?: string,
-    signal?: AbortSignal
-): Promise<TranslationResult> {
-    const engine = engineId ? getEngineById(engineId) ?? currentEngine() : currentEngine();
+export interface ResolvedDirection {
+    effFrom: string;
+    effTo: string;
+}
 
-    // 自动换向：源语言与目标语言相同时切换目标语言（中文↔英文），避免"中译中"。
-    // 先用本地预判（可靠区分中/日/韩）省去一次无效请求，再用服务端检测语言兜底。
+/**
+ * 翻译方向决策（纯函数，供测试）：
+ * 自动换向开启时，源语言与目标语言相同则切换目标语言（中文↔英文），
+ * 先本地预判（可靠区分中/日/韩），避免一次无效请求。
+ */
+export function resolveDirection(text: string, from: string, to: string): ResolvedDirection {
     let effFrom = from;
     let effTo = to;
     if (config.autoSwapTarget()) {
@@ -82,6 +82,36 @@ export async function translateQuery(
             }
         }
     }
+    return { effFrom, effTo };
+}
+
+/**
+ * 响应后判断是否需要换向重试（纯函数，供测试）：
+ * 服务端检测语言=目标语言（本地未预判到的语种），
+ * 或目标为中文但译文原样保留了原文汉字（混合文本被误判为其他语言的中译中）。
+ */
+export function needsRetrySwap(
+    source: string,
+    result: Pick<TranslationResult, 'from' | 'to' | 'text'>
+): boolean {
+    if (!config.autoSwapTarget()) {
+        return false;
+    }
+    const sameDetected = result.from !== AUTO && sameLanguage(result.from, result.to);
+    const zhToZh = result.to.startsWith('zh') && looksZhToZh(source, result.text);
+    return sameDetected || zhToZh;
+}
+
+export async function translateQuery(
+    text: string,
+    from: string,
+    to: string,
+    engineId?: string,
+    signal?: AbortSignal
+): Promise<TranslationResult> {
+    const engine = engineId ? getEngineById(engineId) ?? currentEngine() : currentEngine();
+
+    const { effFrom, effTo } = resolveDirection(text, from, to);
 
     const key = `${engine.id}|${effFrom}|${effTo}|${text}`;
     const hit = cache.get(key);
@@ -96,17 +126,11 @@ export async function translateQuery(
     }
     const task = (async (): Promise<TranslationResult> => {
         let result = await withRetry(() => engine.translate(text, effFrom, effTo, signal));
-        if (config.autoSwapTarget()) {
-            // 换向兜底：服务端检测语言=目标语言（本地未预判到的语种），
-            // 或目标为中文但译文原样保留了原文汉字（混合文本被误判为其他语言的中译中）
-            const sameDetected = result.from !== AUTO && sameLanguage(result.from, result.to);
-            const zhToZh = result.to.startsWith('zh') && looksZhToZh(text, result.text);
-            if (sameDetected || zhToZh) {
-                const retryFrom = result.from !== AUTO ? result.from : AUTO;
-                result = await withRetry(() =>
-                    engine.translate(text, retryFrom, oppositeTargetLang(result.to), signal)
-                );
-            }
+        if (needsRetrySwap(text, result)) {
+            const retryFrom = result.from !== AUTO ? result.from : AUTO;
+            result = await withRetry(() =>
+                engine.translate(text, retryFrom, oppositeTargetLang(result.to), signal)
+            );
         }
         cache.set(key, result);
         if (cache.size > CACHE_LIMIT) {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+- 建立完整自动化测试套件（53 个用例：语言判定/换向决策/取词/存储/文本格式化/HTTP协议/代理隧道/WebSocket/Webview一致性）
+- 修复代理 HTTPS 隧道发送明文的严重 bug（隧道 socket 上需自行完成 TLS 握手）
+- 修复智能取词未统一小写（"getUserInfo" 查询为 "get user info"）
+- 修复替换样式 space 使用空分隔符时被回退为空格的问题
+
 ## 0.3.0
 
 健壮性与可用性增强：

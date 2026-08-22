@@ -33,11 +33,13 @@ export function wordAtPosition(document: vscode.TextDocument, position: vscode.P
     if (!/\p{L}/u.test(raw)) {
         return undefined;
     }
+    // 词典查询惯例：英文统一小写（中文等不受影响）
     const query = raw
         .replace(/[_']/g, ' ')
         .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
         .replace(/\s+/g, ' ')
-        .trim();
+        .trim()
+        .toLowerCase();
     if (!query) {
         return undefined;
     }

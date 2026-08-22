@@ -31,7 +31,8 @@ export function formatTranslated(text: string, style: string, separator: string)
         case 'kebab-case':
             return norm.join('-');
         case 'space':
-            return norm.join(separator || ' ');
+            // 空分隔符 = 直接连接（config 层已保证未配置时使用默认空格）
+            return norm.join(separator);
         default:
             return text;
     }

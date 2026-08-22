@@ -86,6 +86,17 @@ npm run compile   # 或者 npm run watch
 - 用 VSCode 打开本项目，按 `F5` 启动扩展开发宿主进行调试。
 - 打包安装：`npx @vscode/vsce package`（生成 `.vsix` 后执行 `code --install-extension xxx.vsix`）。
 
+## 测试
+
+**修改代码后必须完整跑过以下两步再打包发布**：
+
+```bash
+npm test         # 单元+协议测试（53 用例，无需网络）：语言判定/换向决策/取词/存储/格式化/HTTP/代理/WebSocket/Webview一致性
+npm run test:live  # 真机集成测试（需网络）：微软引擎多方向翻译、自动换向全场景、Edge TTS
+```
+
+覆盖说明：`test/` 目录为离线测试，用本地 mock 服务器验证 HTTP 行为（重定向/超时/取消/代理 CONNECT 隧道）、WebSocket 帧编解码（掩码/分片/ping-pong）以及 Webview 的 HTML/JS 交叉一致性（元素 ID、消息分支、CSP、脚本语法防白屏）；`scripts/smoke-*.js` 为真实网络集成测试。新增功能请同步补充对应测试用例。
+
 ## 说明
 
 - **代理环境**：插件尊重 VSCode 的 `http.proxy` 设置（HTTP 代理，CONNECT 隧道），配置后即可在企业代理下使用 Google/DeepL/OpenAI 等境外引擎。

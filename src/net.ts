@@ -1,6 +1,7 @@
 import * as http from 'http';
 import * as https from 'https';
 import * as net from 'net';
+import * as tls from 'tls';
 
 export interface HttpResponse {
     status: number;
@@ -82,7 +83,7 @@ export function request(url: string, options: RequestOptions = {}): Promise<Http
                         throw new Error('请求已取消');
                     }
                 }
-                // https 目标 + 配置了代理 → CONNECT 隧道
+                // https 目标 + 配置了代理 → CONNECT 隧道，并在隧道之上做 TLS 握手
                 if (options.proxy && isHttps) {
                     let proxyUrl: URL;
                     try {
@@ -92,7 +93,10 @@ export function request(url: string, options: RequestOptions = {}): Promise<Http
                         return;
                     }
                     const socket = await tunnel(proxyUrl, u.hostname, Number(defaultPort), timeout);
-                    (reqOpts as { createConnection?: unknown }).createConnection = () => socket;
+                    // 注意：自定义 createConnection 返回的 socket 会被视作已完成 TLS 的连接，
+                    // 必须自行在隧道上发起 TLS 握手，否则发送的是明文 HTTP
+                    (reqOpts as { createConnection?: unknown }).createConnection = () =>
+                        tls.connect({ socket, servername: u.hostname });
                 }
                 const req = mod.request(reqOpts, res => {
                     const status = res.statusCode ?? 0;
