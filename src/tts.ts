@@ -44,6 +44,7 @@ async function googleTts(text: string, lang: string): Promise<string> {
         `&tl=${encodeURIComponent(tl)}&total=1&idx=0&textlen=${trimmed.length}` +
         `&q=${encodeURIComponent(trimmed)}`;
     const res = await request(url, {
+        proxy: config.httpProxy(),
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
             Referer: 'https://translate.google.com/'

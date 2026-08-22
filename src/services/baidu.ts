@@ -39,7 +39,7 @@ export const baiduEngine: TranslationEngine = {
         return config.baiduAppId() ? undefined : '需在设置 translation.baidu.* 中配置 APP ID 与密钥';
     },
 
-    async translate(text: string, from: string, to: string): Promise<TranslationResult> {
+    async translate(text: string, from: string, to: string, signal?: AbortSignal): Promise<TranslationResult> {
         const appId = config.baiduAppId();
         const appSecret = config.baiduAppSecret();
         if (!appId || !appSecret) {
@@ -59,7 +59,7 @@ export const baiduEngine: TranslationEngine = {
             `&appid=${encodeURIComponent(appId)}` +
             `&salt=${encodeURIComponent(salt)}` +
             `&sign=${sign}`;
-        const data = await requestJson<BaiduResponse>(url);
+        const data = await requestJson<BaiduResponse>(url, { proxy: config.httpProxy(), signal });
         if (data.error_code) {
             throw new EngineError(`百度翻译出错（${data.error_code}: ${data.error_msg ?? ''}）`, 'baidu');
         }

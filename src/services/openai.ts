@@ -15,7 +15,7 @@ export const openaiEngine: TranslationEngine = {
         return config.openaiApiKey() ? undefined : '需在设置 translation.openai.apiKey 中配置 API Key';
     },
 
-    async translate(text: string, from: string, to: string): Promise<TranslationResult> {
+    async translate(text: string, from: string, to: string, signal?: AbortSignal): Promise<TranslationResult> {
         const apiKey = config.openaiApiKey();
         if (!apiKey) {
             throw new EngineError('请先在设置 translation.openai.apiKey 中配置 API Key', 'openai');
@@ -25,6 +25,8 @@ export const openaiEngine: TranslationEngine = {
         const system = `你是专业翻译引擎。把用户输入从${src}翻译成${langName(to)}。只输出译文本身，不要解释、不要引号、不要添加任何多余内容。`;
         const data = await requestJson<ChatResponse>(`${base}/chat/completions`, {
             method: 'POST',
+            proxy: config.httpProxy(),
+            signal,
             headers: {
                 Authorization: `Bearer ${apiKey}`,
                 'Content-Type': 'application/json'

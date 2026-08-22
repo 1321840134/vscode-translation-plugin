@@ -16,7 +16,7 @@ const BUILTIN_WORDS = [
     'robust', 'concise', 'verbose', 'deprecated', 'refactor',
     'intuitive', 'obsolete', 'intricate', 'profound', 'subtle',
     'diligent', 'arduous', 'tenacious', 'versatile', 'prolific',
-    'candid', 'profound', 'vivid', 'crucial', 'inevitable'
+    'candid', 'vivid', 'crucial', 'inevitable'
 ];
 
 interface WordAtCursor {
@@ -298,6 +298,7 @@ function setupAutoTranslate(context: vscode.ExtensionContext): void {
 export function activate(context: vscode.ExtensionContext): void {
     storage.init(context);
     initStatusBar(context);
+    showFirstRunGuide(context);
 
     const commands: [string, () => Promise<void> | void][] = [
         ['translation.showDialog', () => showPanel({ focusInput: true })],
@@ -331,6 +332,31 @@ export function activate(context: vscode.ExtensionContext): void {
             }
         })
     );
+}
+
+/** 首次安装后的一次性使用引导 */
+function showFirstRunGuide(context: vscode.ExtensionContext): void {
+    const GUIDE_KEY = 'translation.guideShown';
+    if (context.globalState.get(GUIDE_KEY)) {
+        return;
+    }
+    void context.globalState.update(GUIDE_KEY, true).then(() => {
+        void vscode.window
+            .showInformationMessage(
+                'Translation 已就绪：选中文字按 Ctrl+Shift+Y 翻译；鼠标悬浮单词即显示翻译。',
+                '打开翻译面板',
+                '查看说明'
+            )
+            .then(pick => {
+                if (pick === '打开翻译面板') {
+                    showPanel({ focusInput: true });
+                } else if (pick === '查看说明') {
+                    void vscode.env.openExternal(
+                        vscode.Uri.parse('https://github.com/1321840134/vscode-translation-plugin#readme')
+                    );
+                }
+            });
+    });
 }
 
 export function deactivate(): void {

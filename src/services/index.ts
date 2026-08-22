@@ -40,11 +40,31 @@ export function currentEngine(): TranslationEngine {
 const CACHE_LIMIT = 200;
 const cache = new Map<string, TranslationResult>();
 
+/** 进行中的请求（相同查询共享同一个 Promise，避免并发重复请求） */
+const inflight = new Map<string, Promise<TranslationResult>>();
+
+/** 可重试的网络类错误（"请求已取消"不重试） */
+const RETRYABLE = /网络请求超时|代理连接超时|ECONNRESET|ECONNREFUSED|EPIPE|EAI_AGAIN|socket hang up|HTTP 5\d\d/;
+
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+        return await fn();
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!RETRYABLE.test(msg)) {
+            throw e;
+        }
+        await new Promise(r => setTimeout(r, 600));
+        return await fn();
+    }
+}
+
 export async function translateQuery(
     text: string,
     from: string,
     to: string,
-    engineId?: string
+    engineId?: string,
+    signal?: AbortSignal
 ): Promise<TranslationResult> {
     const engine = engineId ? getEngineById(engineId) ?? currentEngine() : currentEngine();
 
@@ -70,25 +90,39 @@ export async function translateQuery(
         cache.set(key, hit);
         return { ...hit };
     }
-    let result = await engine.translate(text, effFrom, effTo);
-    if (config.autoSwapTarget()) {
-        // 换向兜底：服务端检测语言=目标语言（本地未预判到的语种），
-        // 或目标为中文但译文原样保留了原文汉字（混合文本被误判为其他语言的中译中）
-        const sameDetected = result.from !== AUTO && sameLanguage(result.from, result.to);
-        const zhToZh = result.to.startsWith('zh') && looksZhToZh(text, result.text);
-        if (sameDetected || zhToZh) {
-            const retryFrom = result.from !== AUTO ? result.from : AUTO;
-            result = await engine.translate(text, retryFrom, oppositeTargetLang(result.to));
-        }
+    const pending = inflight.get(key);
+    if (pending) {
+        return { ...(await pending) };
     }
-    cache.set(key, result);
-    if (cache.size > CACHE_LIMIT) {
-        const oldest = cache.keys().next();
-        if (!oldest.done && oldest.value !== undefined) {
-            cache.delete(oldest.value);
+    const task = (async (): Promise<TranslationResult> => {
+        let result = await withRetry(() => engine.translate(text, effFrom, effTo, signal));
+        if (config.autoSwapTarget()) {
+            // 换向兜底：服务端检测语言=目标语言（本地未预判到的语种），
+            // 或目标为中文但译文原样保留了原文汉字（混合文本被误判为其他语言的中译中）
+            const sameDetected = result.from !== AUTO && sameLanguage(result.from, result.to);
+            const zhToZh = result.to.startsWith('zh') && looksZhToZh(text, result.text);
+            if (sameDetected || zhToZh) {
+                const retryFrom = result.from !== AUTO ? result.from : AUTO;
+                result = await withRetry(() =>
+                    engine.translate(text, retryFrom, oppositeTargetLang(result.to), signal)
+                );
+            }
         }
+        cache.set(key, result);
+        if (cache.size > CACHE_LIMIT) {
+            const oldest = cache.keys().next();
+            if (!oldest.done && oldest.value !== undefined) {
+                cache.delete(oldest.value);
+            }
+        }
+        return result;
+    })();
+    inflight.set(key, task);
+    try {
+        return { ...(await task) };
+    } finally {
+        inflight.delete(key);
     }
-    return { ...result };
 }
 
 /** 按行边界将长文本切分为不超过 max 长度的块 */

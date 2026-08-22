@@ -32,7 +32,7 @@ export const youdaoEngine: TranslationEngine = {
         return config.youdaoAppKey() ? undefined : '需在设置 translation.youdao.* 中配置应用 ID 与密钥';
     },
 
-    async translate(text: string, from: string, to: string): Promise<TranslationResult> {
+    async translate(text: string, from: string, to: string, signal?: AbortSignal): Promise<TranslationResult> {
         const appKey = config.youdaoAppKey();
         const appSecret = config.youdaoAppSecret();
         if (!appKey || !appSecret) {
@@ -50,6 +50,8 @@ export const youdaoEngine: TranslationEngine = {
         const toCode = TO_YOUDAO[to] ?? to;
         const data = await requestJson<YoudaoResponse>('https://openapi.youdao.com/api', {
             method: 'POST',
+            proxy: config.httpProxy(),
+            signal,
             headers: { 'Content-Type': FORM_CONTENT_TYPE },
             body: formBody({
                 q,

@@ -52,6 +52,8 @@ let pendingShow: { tab?: PanelTab; focus?: boolean } | undefined;
 
 class TranslationPanel {
     private static instance: TranslationPanel | undefined;
+    /** 翻译请求序号：旧请求的响应不得覆盖新请求的结果 */
+    private requestSeq = 0;
 
     static show(opts: { tab?: PanelTab; focusInput?: boolean } = {}): void {
         if (TranslationPanel.instance) {
@@ -201,9 +203,13 @@ class TranslationPanel {
         if (!query) {
             return;
         }
+        const seq = ++this.requestSeq;
         this.post({ type: 'loading' });
         try {
             const result = await translateQuery(query, from, to);
+            if (seq !== this.requestSeq) {
+                return; // 已有更新的翻译请求，丢弃本次结果
+            }
             lastState = { results: [toResultView(result)], query };
             storage.pushHistory({
                 query: result.query,
@@ -217,6 +223,9 @@ class TranslationPanel {
                 await this.doSpeak(result.query, result.from);
             }
         } catch (e) {
+            if (seq !== this.requestSeq) {
+                return;
+            }
             const message = e instanceof Error ? e.message : String(e);
             lastState = { results: [], query, error: message };
             this.post({ type: 'error', message });
@@ -254,6 +263,7 @@ class TranslationPanel {
     showResults(results: TranslationResult[], preserveFocus = false): void {
         const views = results.map(toResultView);
         lastState = { results: views, query: results.map(r => r.query).join('\n') };
+        this.requestSeq++; // 外部结果到达时，作废面板内挂起的旧请求
         this.panel.reveal(undefined, preserveFocus);
         this.post({ type: 'setTab', tab: 'translate' });
         this.refreshResults();

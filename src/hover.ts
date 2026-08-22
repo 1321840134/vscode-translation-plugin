@@ -28,12 +28,16 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
             return undefined;
         }
         const to = config.targetLanguage();
-
+        // 悬浮被取消（鼠标移走）时中止底层网络请求，避免划词时堆积请求
+        const controller = new AbortController();
+        const disposableView = token.onCancellationRequested(() => controller.abort());
         let wordResult: TranslationResult;
         try {
-            wordResult = await translateQuery(word.query, AUTO, to);
+            wordResult = await translateQuery(word.query, AUTO, to, undefined, controller.signal);
         } catch {
             return undefined;
+        } finally {
+            disposableView.dispose();
         }
         if (token.isCancellationRequested) {
             return undefined;

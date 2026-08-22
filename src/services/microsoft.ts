@@ -74,27 +74,32 @@ export const microsoftEngine: TranslationEngine = {
     id: 'microsoft',
     name: '微软翻译',
 
-    async translate(text: string, from: string, to: string): Promise<TranslationResult> {
+    async translate(text: string, from: string, to: string, signal?: AbortSignal): Promise<TranslationResult> {
         const toMs = TO_MS[to] ?? to;
         const fromMs = from === 'auto' ? '' : TO_MS[from] ?? from;
-        const body = JSON.stringify([text]);
+        const apiKey = config.microsoftKey();
+
+        // 注意两个端点请求体格式不同：Azure 为 [{Text}] 对象数组，Edge 为纯字符串数组
+        const body = apiKey
+            ? JSON.stringify([{ Text: text }])
+            : JSON.stringify([text]);
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
             'Content-Length': Buffer.byteLength(body).toString(),
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         };
+        const requestOptions = { method: 'POST', headers, body, signal, proxy: config.httpProxy() };
 
-        const apiKey = config.microsoftKey();
         if (apiKey) {
-            const url =
-                `${AZURE_TRANSLATE_URL}?api-version=3.0` +
-                `&from=${encodeURIComponent(fromMs)}&to=${encodeURIComponent(toMs)}`;
             const region = config.microsoftRegion();
             if (region) {
                 headers['Ocp-Apim-Subscription-Region'] = region;
             }
             headers['Ocp-Apim-Subscription-Key'] = apiKey;
-            const raw = await request(url, { method: 'POST', headers, body });
+            const url =
+                `${AZURE_TRANSLATE_URL}?api-version=3.0` +
+                `&from=${encodeURIComponent(fromMs)}&to=${encodeURIComponent(toMs)}`;
+            const raw = await request(url, requestOptions);
             return parseTranslateResponse(raw, text, from, to);
         }
 
@@ -102,7 +107,7 @@ export const microsoftEngine: TranslationEngine = {
         const url =
             `${EDGE_TRANSLATE_URL}?from=${encodeURIComponent(fromMs)}` +
             `&to=${encodeURIComponent(toMs)}&isEnterpriseClient=false`;
-        const raw = await request(url, { method: 'POST', headers, body });
+        const raw = await request(url, requestOptions);
         return parseTranslateResponse(raw, text, from, to);
     }
 };

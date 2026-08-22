@@ -35,7 +35,7 @@ export const deeplEngine: TranslationEngine = {
         return config.deeplAuthKey() ? undefined : '需在设置 translation.deepl.authKey 中配置密钥';
     },
 
-    async translate(text: string, from: string, to: string): Promise<TranslationResult> {
+    async translate(text: string, from: string, to: string, signal?: AbortSignal): Promise<TranslationResult> {
         const key = config.deeplAuthKey();
         if (!key) {
             throw new EngineError('请先在设置 translation.deepl.authKey 中配置 DeepL 密钥', 'deepl');
@@ -55,6 +55,8 @@ export const deeplEngine: TranslationEngine = {
         }
         const data = await requestJson<DeeplResponse>(`https://${host}/v2/translate`, {
             method: 'POST',
+            proxy: config.httpProxy(),
+            signal,
             headers: {
                 Authorization: `DeepL-Auth-Key ${key}`,
                 'Content-Type': FORM_CONTENT_TYPE,

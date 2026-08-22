@@ -135,3 +135,9 @@ export function baiduAppId(): string {
 export function baiduAppSecret(): string {
     return cfg().get<string>('baidu.appSecret') ?? '';
 }
+
+/** VSCode 的 http.proxy 设置（企业代理环境下访问 Google/DeepL/OpenAI 等必需） */
+export function httpProxy(): string | undefined {
+    const proxy = vscode.workspace.getConfiguration('http').get<string>('proxy');
+    return proxy && proxy.trim() ? proxy.trim() : undefined;
+}

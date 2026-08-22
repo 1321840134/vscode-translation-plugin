@@ -25,10 +25,12 @@ export const googleEngine: TranslationEngine = {
     id: 'google',
     name: 'Google 翻译',
 
-    async translate(text: string, from: string, to: string): Promise<TranslationResult> {
+    async translate(text: string, from: string, to: string, signal?: AbortSignal): Promise<TranslationResult> {
         const host = config.googleHost();
         const res = await request(`https://${host}/translate_a/single`, {
             method: 'POST',
+            proxy: config.httpProxy(),
+            signal,
             headers: {
                 'Content-Type': FORM_CONTENT_TYPE,
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'

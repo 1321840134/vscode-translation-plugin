@@ -26,8 +26,8 @@ export interface TranslationEngine {
     readonly name: string;
     /** 引擎是否已配置好（密钥等），未配置时给出设置项提示 */
     readonly configHint?: string;
-    /** from/to 为插件规范语言代码；from 可为 auto */
-    translate(text: string, from: string, to: string): Promise<TranslationResult>;
+    /** from/to 为插件规范语言代码；from 可为 auto；signal 可取消底层请求 */
+    translate(text: string, from: string, to: string, signal?: AbortSignal): Promise<TranslationResult>;
 }
 
 export class EngineError extends Error {

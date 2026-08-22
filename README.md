@@ -88,6 +88,7 @@ npm run compile   # 或者 npm run watch
 
 ## 说明
 
+- **代理环境**：插件尊重 VSCode 的 `http.proxy` 设置（HTTP 代理，CONNECT 隧道），配置后即可在企业代理下使用 Google/DeepL/OpenAI 等境外引擎。
 - 参考插件的 JetBrains 深度集成能力（悬浮文档翻译、取词等）在 VSCode 中以 HoverProvider、右键菜单、命令面板方式等价实现；其"多行翻译替换""取词排除"等细节行为未完全复刻。
 - Edge 翻译/语音端点与 Google 免费接口均为微软/谷歌未公开承诺的接口，理论上可能变动；引擎报错信息已做可读化处理，届时可切换其他引擎。
 
