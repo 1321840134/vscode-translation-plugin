@@ -1,12 +1,20 @@
 # Changelog
 
+## 0.4.1
+
+对齐参考插件 TranslationPlugin **v3.9.0**（2026-08-23 发布）：
+- 文档翻译支持保留原文：`translation.document.preserveSource` 开启后输出"原文/译文"逐段对照
+- OpenAI 引擎高级配置（实验性）：自定义系统提示词（支持 {sourceLang}/{targetLang} 占位符）与采样温度
+- 引擎切换弹窗新增"打开当前引擎设置"快速入口
+- （勘误：0.4.0 变更说明中"对齐 4.2.0"有误，该版本号来自不可靠的抓取结果；参考插件实际最新版为 v3.9.0）
+
 ## 0.4.0
 
-对齐参考插件 TranslationPlugin 4.2.0 的最新功能：
+引擎与语音扩展（经核实与参考插件版本无关，功能本身保留）：
 - 新增阿里翻译引擎（阿里云机器翻译通用版，POP V1 签名，需配置 AccessKey）
 - 新增 OpenAI TTS 语音引擎（/audio/speech，模型与音色可配置）；auto 模式回退链扩展为 Edge → OpenAI → Google
-- 翻译对话框快捷键对齐参考插件：Alt+S/Alt+T 切换源/目标语言、Alt+Enter 朗读原文、Ctrl+F 收藏、Ctrl+H 历史、Ctrl+Shift+C 复制译文、Ctrl+Shift+Backspace 清空输入
-- 新增测试 9 例（阿里签名独立重算、TTS 调度分支、面板快捷键一致性），总计 68 例
+- 翻译对话框快捷键：Alt+S/Alt+T 切换源/目标语言、Alt+Enter 朗读原文、Ctrl+F 收藏、Ctrl+H 历史、Ctrl+Shift+C 复制译文、Ctrl+Shift+Backspace 清空输入
+- 新增测试 9 例（阿里签名独立重算、TTS 调度分支、面板快捷键一致性）
 
 ## 0.3.2
 

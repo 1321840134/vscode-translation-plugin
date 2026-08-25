@@ -177,20 +177,31 @@ export function chunkText(text: string, max = 1600): string[] {
     return chunks.length > 0 ? chunks : [''];
 }
 
+/** 长文本翻译选项 */
+export interface TranslateLongOptions {
+    /** 保留原文：输出"原文\n译文"对照块（对应参考插件文档翻译保留原文） */
+    preserveSource?: boolean;
+    /** 翻译实现（默认门面，供测试注入） */
+    translateImpl?: typeof translateQuery;
+}
+
 /** 长文本翻译：分块请求后合并（用于整篇文档翻译） */
 export async function translateLong(
     text: string,
     from: string,
     to: string,
-    onProgress?: (done: number, total: number) => void
+    onProgress?: (done: number, total: number) => void,
+    options: TranslateLongOptions = {}
 ): Promise<TranslationResult> {
+    const impl = options.translateImpl ?? translateQuery;
     const chunks = chunkText(text);
     const parts: string[] = [];
+    const pairs: [string, string][] = [];
     let head: TranslationResult | undefined;
     let phonetic: string | undefined;
     const definitions: { pos: string; terms: string[] }[] = [];
     for (let i = 0; i < chunks.length; i++) {
-        const r = await translateQuery(chunks[i], from, to);
+        const r = await impl(chunks[i], from, to);
         if (!head) {
             head = r;
             phonetic = r.phonetic;
@@ -201,6 +212,7 @@ export async function translateLong(
             }
         }
         parts.push(r.text);
+        pairs.push([chunks[i], r.text]);
         if (onProgress) {
             onProgress(i + 1, chunks.length);
         }
@@ -209,7 +221,9 @@ export async function translateLong(
         query: text,
         from: head?.from ?? from,
         to: head?.to ?? to,
-        text: parts.join('\n'),
+        text: options.preserveSource
+            ? pairs.map(([src, dst]) => `${src}\n${dst}`).join('\n\n')
+            : parts.join('\n'),
         engineId: head?.engineId ?? currentEngine().id,
         engineName: head?.engineName ?? currentEngine().name
     };

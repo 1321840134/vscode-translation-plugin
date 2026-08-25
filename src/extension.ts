@@ -160,17 +160,24 @@ async function translateDocumentCommand(): Promise<void> {
     }
     const from = config.sourceLanguage();
     const to = config.targetLanguage();
+    const preserveSource = config.docPreserveSource();
     await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: '正在翻译文档…', cancellable: false },
         async progress => {
             try {
-                const result = await translateLong(text, from, to, (done, total) => {
-                    progress.report({ message: `${done}/${total} 段`, increment: (1 / total) * 100 });
-                });
+                const result = await translateLong(
+                    text,
+                    from,
+                    to,
+                    (done, total) => {
+                        progress.report({ message: `${done}/${total} 段`, increment: (1 / total) * 100 });
+                    },
+                    { preserveSource }
+                );
                 const doc = await vscode.workspace.openTextDocument({ content: result.text, language: 'plaintext' });
                 await vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
                 void vscode.window.showInformationMessage(
-                    `文档翻译完成: ${langName(result.from)} → ${langName(result.to)}（${result.engineName}）`
+                    `文档翻译完成${preserveSource ? '（含原文对照）' : ''}: ${langName(result.from)} → ${langName(result.to)}（${result.engineName}）`
                 );
             } catch (e) {
                 void vscode.window.showErrorMessage(`文档翻译失败: ${errMessage(e)}`);
@@ -181,18 +188,31 @@ async function translateDocumentCommand(): Promise<void> {
 
 async function switchEngineCommand(): Promise<void> {
     const current = config.engine();
-    const picks = ENGINES.map(e => ({
-        label: e.name,
-        description: e.id === current ? '$(check) 当前' : '',
-        detail: e.configHint ?? '免费，无需配置',
-        id: e.id
-    }));
+    const picks: { label: string; description: string; detail: string; id: string }[] = [
+        {
+            label: '$(settings-gear) 打开当前引擎设置',
+            description: '快速配置',
+            detail: `跳转到 VSCode 设置: translation.${current}`,
+            id: '__open_settings__'
+        },
+        ...ENGINES.map(e => ({
+            label: e.name,
+            description: e.id === current ? '$(check) 当前' : '',
+            detail: e.configHint ?? '免费，无需配置',
+            id: e.id
+        }))
+    ];
     const picked = await vscode.window.showQuickPick(picks, { placeHolder: '选择翻译引擎' });
-    if (picked) {
-        await config.setEngine(picked.id);
-        updateStatusBar();
-        void vscode.window.showInformationMessage(`翻译引擎已切换为 ${picked.label}`);
+    if (!picked) {
+        return;
     }
+    if (picked.id === '__open_settings__') {
+        await vscode.commands.executeCommand('workbench.action.openSettings', `translation.${current}`);
+        return;
+    }
+    await config.setEngine(picked.id);
+    updateStatusBar();
+    void vscode.window.showInformationMessage(`翻译引擎已切换为 ${picked.label}`);
 }
 
 async function pickLanguage(includeAuto: boolean, current: string): Promise<string | undefined> {

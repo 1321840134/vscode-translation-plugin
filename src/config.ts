@@ -136,6 +136,25 @@ export function openaiApiBase(): string {
     return cfg().get<string>('openai.apiBase') || 'https://api.openai.com/v1';
 }
 
+/** OpenAI 高级配置：自定义系统提示词（支持 {sourceLang}/{targetLang} 占位符，留空用默认） */
+export function openaiSystemPrompt(): string {
+    return cfg().get<string>('openai.systemPrompt') ?? '';
+}
+
+/** OpenAI 高级配置：采样温度（0-2） */
+export function openaiTemperature(): number {
+    const t = cfg().get<number>('openai.temperature');
+    if (t === undefined || t < 0 || t > 2) {
+        return 0.2;
+    }
+    return t;
+}
+
+/** 文档翻译时保留原文（Google/微软支持对照输出） */
+export function docPreserveSource(): boolean {
+    return cfg().get<boolean>('document.preserveSource') ?? false;
+}
+
 export function youdaoAppKey(): string {
     return cfg().get<string>('youdao.appKey') ?? '';
 }

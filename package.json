@@ -2,7 +2,7 @@
   "name": "vscode-translation-plugin",
   "displayName": "Translation",
   "description": "强大的翻译插件：多引擎翻译(微软/Google/DeepL/OpenAI/有道/百度/阿里)、翻译替换、翻译文档、单词本、翻译历史、多引擎语音朗读、自动取词",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "publisher": "vscode-translation-plugin",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -322,6 +322,23 @@
           "type": "string",
           "default": "https://api.openai.com/v1",
           "description": "OpenAI API 地址（可改为兼容接口）"
+        },
+        "translation.openai.systemPrompt": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI 高级配置：自定义系统提示词，支持 {sourceLang}/{targetLang} 占位符，留空使用默认提示"
+        },
+        "translation.openai.temperature": {
+          "type": "number",
+          "default": 0.2,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "OpenAI 高级配置：采样温度（0-2，越低越稳定）"
+        },
+        "translation.document.preserveSource": {
+          "type": "boolean",
+          "default": false,
+          "description": "文档翻译时保留原文：输出\"原文/译文\"逐段对照"
         },
         "translation.youdao.appKey": {
           "type": "string",
