@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+对齐参考插件 TranslationPlugin 4.2.0 的最新功能：
+- 新增阿里翻译引擎（阿里云机器翻译通用版，POP V1 签名，需配置 AccessKey）
+- 新增 OpenAI TTS 语音引擎（/audio/speech，模型与音色可配置）；auto 模式回退链扩展为 Edge → OpenAI → Google
+- 翻译对话框快捷键对齐参考插件：Alt+S/Alt+T 切换源/目标语言、Alt+Enter 朗读原文、Ctrl+F 收藏、Ctrl+H 历史、Ctrl+Shift+C 复制译文、Ctrl+Shift+Backspace 清空输入
+- 新增测试 9 例（阿里签名独立重算、TTS 调度分支、面板快捷键一致性），总计 68 例
+
 ## 0.3.2
 
 - 修复悬浮翻译永久"正在加载"的严重 bug：0.3.0 将递归防护改为 AsyncLocalStorage，但其上下文无法跨过 vscode 命令执行边界传播，导致 executeHoverProvider 无限递归、悬浮 Promise 永不结束。回退为模块级标志 + 自身内容过滤双重防护

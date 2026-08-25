@@ -392,6 +392,56 @@ kbd {
   $('historySearch').oninput = function () { renderHistory(historyData); };
   $('wordSearch').oninput = function () { renderWords(wordData); };
 
+  // 对话框快捷键（与参考插件的翻译对话框快捷键对齐）
+  function openPicker(sel) {
+    try {
+      sel.focus();
+      if (sel.showPicker) { sel.showPicker(); }
+    } catch (e) { /* 忽略 */ }
+  }
+  document.addEventListener('keydown', function (e) {
+    var hasResults = lastResults && lastResults.length > 0;
+    var k = e.key;
+    // Alt+S 打开源语言列表 / Alt+T 打开目标语言列表
+    if (e.altKey && !e.ctrlKey && !e.shiftKey && (k === 's' || k === 'S')) {
+      e.preventDefault(); openPicker($('fromLang')); return;
+    }
+    if (e.altKey && !e.ctrlKey && !e.shiftKey && (k === 't' || k === 'T')) {
+      e.preventDefault(); openPicker($('toLang')); return;
+    }
+    // Alt+Enter 朗读原文
+    if (e.altKey && k === 'Enter') {
+      e.preventDefault();
+      if (hasResults) { send('speak', { text: lastResults[0].query, lang: lastResults[0].from }); }
+      return;
+    }
+    // Ctrl+F 收藏当前结果
+    if (e.ctrlKey && !e.shiftKey && !e.altKey && (k === 'f' || k === 'F')) {
+      e.preventDefault();
+      if (hasResults) { send('star', { text: lastResults[0].query, to: lastResults[0].to }); }
+      return;
+    }
+    // Ctrl+H 查看翻译历史
+    if (e.ctrlKey && !e.shiftKey && !e.altKey && (k === 'h' || k === 'H')) {
+      e.preventDefault(); setTab('history'); return;
+    }
+    // Ctrl+Shift+C 复制译文
+    if (e.ctrlKey && e.shiftKey && !e.altKey && (k === 'c' || k === 'C')) {
+      e.preventDefault();
+      if (hasResults) { send('copy', { text: lastResults[0].text }); }
+      return;
+    }
+    // Ctrl+Shift+Backspace 清空输入
+    if (e.ctrlKey && e.shiftKey && k === 'Backspace') {
+      e.preventDefault();
+      $('query').value = '';
+      state.query = '';
+      saveState();
+      $('query').focus();
+      return;
+    }
+  });
+
   window.addEventListener('message', function (ev) {
     var m = ev.data;
     if (!m || !m.type) { return; }

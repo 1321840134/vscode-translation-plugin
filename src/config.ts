@@ -49,9 +49,25 @@ export function ttsAutoPlay(): boolean {
     return ttsEnabled() && (cfg().get<boolean>('tts.autoPlay') ?? false);
 }
 
-/** auto: Edge 优先、Google 兜底；edge/google 强制指定 */
+/** auto: Edge 优先、Google 兜底；edge/google/openai = 强制指定 */
 export function ttsService(): string {
     return cfg().get<string>('tts.service') ?? 'auto';
+}
+
+export function openaiTtsModel(): string {
+    return cfg().get<string>('tts.openaiModel') || 'gpt-4o-mini-tts';
+}
+
+export function openaiTtsVoice(): string {
+    return cfg().get<string>('tts.openaiVoice') || 'alloy';
+}
+
+export function alibabaAccessKeyId(): string {
+    return cfg().get<string>('alibaba.accessKeyId') ?? '';
+}
+
+export function alibabaAccessKeySecret(): string {
+    return cfg().get<string>('alibaba.accessKeySecret') ?? '';
 }
 
 export function hoverEnabled(): boolean {

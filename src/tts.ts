@@ -1,17 +1,22 @@
 import * as config from './config';
 import { edgeSpeak } from './edge-tts';
+import { openaiSpeak, openaiTtsConfigured } from './openai-tts';
 import { request } from './net';
 
 /**
  * 文本转语音调度：
- * - auto（默认）：优先 Edge 神经网络语音（音质好、地区可达性好），失败时回退 Google TTS
- * - edge / google：强制指定
+ * - auto（默认）：Edge 神经网络语音优先，失败回退 Google TTS
+ * - edge / google / openai：强制指定（openai 需已配置 translation.openai.apiKey）
  */
 export async function synthesize(text: string, lang: string): Promise<string> {
     if (!config.ttsEnabled()) {
         throw new Error('语音朗读已在设置中禁用 (translation.tts.enabled)');
     }
     const service = config.ttsService();
+    if (service === 'openai') {
+        const mp3 = await openaiSpeak(text);
+        return 'data:audio/mpeg;base64,' + mp3.toString('base64');
+    }
     if (service !== 'google') {
         try {
             const mp3 = await edgeSpeak(text, lang === 'auto' ? 'en' : lang);
@@ -25,7 +30,15 @@ export async function synthesize(text: string, lang: string): Promise<string> {
             if (service === 'edge') {
                 throw e;
             }
-            // auto：回退 Google TTS
+            // auto：回退顺序 Edge → OpenAI → Google
+            if (openaiTtsConfigured()) {
+                try {
+                    const mp3 = await openaiSpeak(text);
+                    return 'data:audio/mpeg;base64,' + mp3.toString('base64');
+                } catch {
+                    // 继续回退 Google
+                }
+            }
         }
     }
     return googleTts(text, lang);

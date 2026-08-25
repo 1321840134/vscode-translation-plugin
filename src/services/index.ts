@@ -6,6 +6,7 @@ import {
     oppositeTargetLang,
     sameLanguage
 } from '../languages';
+import { alibabaEngine } from './alibaba';
 import { baiduEngine } from './baidu';
 import { deeplEngine } from './deepl';
 import { googleEngine } from './google';
@@ -18,12 +19,13 @@ export { EngineError } from './types';
 export type { TranslationEngine, TranslationResult, Definition } from './types';
 
 export const ENGINES: TranslationEngine[] = [
-    googleEngine,
     microsoftEngine,
+    googleEngine,
     deeplEngine,
     openaiEngine,
     youdaoEngine,
-    baiduEngine
+    baiduEngine,
+    alibabaEngine
 ];
 
 export function getEngineById(id: string): TranslationEngine | undefined {

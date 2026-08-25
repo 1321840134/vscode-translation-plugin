@@ -4,7 +4,7 @@
 
 ## 功能
 
-- **多引擎翻译**：微软翻译（Edge 公开端点，默认）、Google、DeepL、OpenAI、有道、百度
+- **多引擎翻译**：微软翻译（Edge 公开端点，默认）、Google、DeepL、OpenAI、有道、百度、阿里
 - **多语言互译**：20+ 种语言，自动检测源语言
 - **悬浮翻译**：鼠标悬停在单词上即显示词典翻译（含音标/释义）
 - **文档翻译（悬浮）**：悬停处有文档注释时，自动翻译整段文档内容并追加显示
@@ -13,7 +13,8 @@
 - **选中自动翻译**：选中文本后自动翻译并静默更新到面板（可选开启）
 - **翻译并替换**：将选中文本替换为译文；目标语言为英文时可格式化为 camelCase、snake_case 等命名风格
 - **文档翻译（整篇）**：将整个文档翻译后在新窗口打开
-- **文本转语音**：Edge 神经网络语音（与参考插件同源，音质好、多音色），可回退 Google TTS；支持自动朗读
+- **文本转语音**：Edge 神经网络语音（默认）、OpenAI TTS（可配模型/音色）、Google TTS 三引擎，auto 模式自动回退；支持自动朗读
+- **对话框快捷键**：`Alt+S`/`Alt+T` 切换源/目标语言、`Alt+Enter` 朗读原文、`Ctrl+F` 收藏、`Ctrl+H` 历史、`Ctrl+Shift+C` 复制译文、`Ctrl+Shift+Backspace` 清空输入
 - **单词本**：翻译结果一键收藏，支持查看、移除、清空、导出 JSON、搜索
 - **翻译历史**：自动记录，支持搜索（含正则）、点击重译、删除、清空
 - **切换引擎**：快捷键/状态栏快速切换翻译引擎
@@ -55,6 +56,7 @@
 | OpenAI | `translation.openai.apiKey`、`translation.openai.model`、`translation.openai.apiBase`（可配置兼容接口） |
 | 有道 | `translation.youdao.appKey`、`translation.youdao.appSecret` |
 | 百度 | `translation.baidu.appId`、`translation.baidu.appSecret` |
+| 阿里 | `translation.alibaba.accessKeyId`、`translation.alibaba.accessKeySecret` |
 
 ## 主要设置项
 

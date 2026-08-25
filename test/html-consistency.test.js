@@ -48,3 +48,19 @@ test('webview：CSP 允许 data: 音频播放（TTS 依赖）', () => {
     assert.ok(html.includes('media-src data:'), 'CSP 必须允许 media-src data:');
     assert.ok(html.includes(`script-src 'nonce-testnonce'`), 'CSP 必须限制 script nonce');
 });
+
+test('webview：翻译对话框快捷键齐全（对齐参考插件）', () => {
+    const src = extractScript(html);
+    const shortcuts = [
+        ['Alt+S/T 语言下拉', "openPicker($('fromLang'))"],
+        ['Ctrl+H 历史', "setTab('history')"],
+        ['Ctrl+F 收藏', "send('star'"],
+        ['Ctrl+Shift+C 复制译文', "send('copy'"],
+        ['Alt+Enter 朗读', "send('speak'"],
+        ['Ctrl+Shift+Backspace 清空', "k === 'Backspace'"]
+    ];
+    for (const [name, token] of shortcuts) {
+        assert.ok(src.includes(token), `缺少快捷键实现: ${name}`);
+    }
+    assert.ok(src.includes('showPicker'), '语言下拉应尝试调用 showPicker');
+});

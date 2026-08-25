@@ -17,6 +17,8 @@ const DEFAULTS = {
     'translation.tts.enabled': true,
     'translation.tts.autoPlay': false,
     'translation.tts.service': 'auto',
+    'translation.tts.openaiModel': 'gpt-4o-mini-tts',
+    'translation.tts.openaiVoice': 'alloy',
     'translation.replace.style': 'original',
     'translation.replace.separator': ' ',
     'translation.panel.position': 'beside',
@@ -31,6 +33,8 @@ const DEFAULTS = {
     'translation.youdao.appSecret': '',
     'translation.baidu.appId': '',
     'translation.baidu.appSecret': '',
+    'translation.alibaba.accessKeyId': '',
+    'translation.alibaba.accessKeySecret': '',
     'http.proxy': ''
 };
 

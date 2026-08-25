@@ -1,8 +1,8 @@
 {
   "name": "vscode-translation-plugin",
   "displayName": "Translation",
-  "description": "强大的翻译插件：多引擎翻译(Google/微软/DeepL/OpenAI/有道/百度)、翻译替换、翻译文档、单词本、翻译历史、语音朗读、自动取词",
-  "version": "0.3.2",
+  "description": "强大的翻译插件：多引擎翻译(微软/Google/DeepL/OpenAI/有道/百度/阿里)、翻译替换、翻译文档、单词本、翻译历史、多引擎语音朗读、自动取词",
+  "version": "0.4.0",
   "publisher": "vscode-translation-plugin",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -132,7 +132,8 @@
             "deepl",
             "openai",
             "youdao",
-            "baidu"
+            "baidu",
+            "alibaba"
           ],
           "default": "microsoft",
           "description": "默认翻译引擎（微软翻译使用 Edge 公开端点，免费无需配置；Google 免费无需配置；其余需配置对应密钥）"
@@ -242,10 +243,21 @@
           "enum": [
             "auto",
             "edge",
-            "google"
+            "google",
+            "openai"
           ],
           "default": "auto",
-          "description": "语音合成服务：auto = Edge 神经网络语音优先、失败回退 Google；edge/google = 强制指定"
+          "description": "语音合成服务：auto = Edge 优先、失败回退；edge/google/openai = 强制指定"
+        },
+        "translation.tts.openaiModel": {
+          "type": "string",
+          "default": "gpt-4o-mini-tts",
+          "description": "OpenAI TTS 模型（也可用 tts-1 等）"
+        },
+        "translation.tts.openaiVoice": {
+          "type": "string",
+          "default": "alloy",
+          "description": "OpenAI TTS 音色（alloy/echo/fable/onyx/nova/shimmer 等）"
         },
         "translation.replace.style": {
           "type": "string",
@@ -330,6 +342,16 @@
           "type": "string",
           "default": "",
           "description": "百度翻译密钥"
+        },
+        "translation.alibaba.accessKeyId": {
+          "type": "string",
+          "default": "",
+          "description": "阿里云 AccessKeyId（机器翻译通用版）"
+        },
+        "translation.alibaba.accessKeySecret": {
+          "type": "string",
+          "default": "",
+          "description": "阿里云 AccessKeySecret"
         }
       }
     }
