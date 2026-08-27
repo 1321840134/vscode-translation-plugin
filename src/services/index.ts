@@ -6,6 +6,7 @@ import {
     oppositeTargetLang,
     sameLanguage
 } from '../languages';
+import { protectInlineTokens } from '../protect';
 import { alibabaEngine } from './alibaba';
 import { baiduEngine } from './baidu';
 import { deeplEngine } from './deepl';
@@ -37,10 +38,28 @@ export function currentEngine(): TranslationEngine {
 }
 
 // ---------------------------------------------------------------------------
-// 简单 LRU 缓存，避免相同查询反复请求
+// LRU 缓存：TTL 过期 + 引擎配置指纹入键
+// （对齐参考插件 v3.9.1：修复配置变更/文档翻译场景下的缓存冲突）
 // ---------------------------------------------------------------------------
 const CACHE_LIMIT = 200;
-const cache = new Map<string, TranslationResult>();
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const cache = new Map<string, { result: TranslationResult; ts: number }>();
+
+/** 构造缓存键（导出供测试）：引擎+方向+文本+配置指纹 */
+export function buildCacheKey(
+    engineId: string,
+    from: string,
+    to: string,
+    text: string,
+    fingerprint: string
+): string {
+    return `${engineId}|${from}|${to}|${text}|${fingerprint}`;
+}
+
+/** 清空翻译缓存（配置变更后可手动调用） */
+export function clearCache(): void {
+    cache.clear();
+}
 
 /** 进行中的请求（相同查询共享同一个 Promise，避免并发重复请求） */
 const inflight = new Map<string, Promise<TranslationResult>>();
@@ -115,12 +134,15 @@ export async function translateQuery(
 
     const { effFrom, effTo } = resolveDirection(text, from, to);
 
-    const key = `${engine.id}|${effFrom}|${effTo}|${text}`;
+    const key = buildCacheKey(engine.id, effFrom, effTo, text, config.engineFingerprint());
     const hit = cache.get(key);
-    if (hit) {
+    if (hit && Date.now() - hit.ts < CACHE_TTL_MS) {
         cache.delete(key);
         cache.set(key, hit);
-        return { ...hit };
+        return { ...hit.result };
+    }
+    if (hit) {
+        cache.delete(key); // 过期条目直接淘汰
     }
     const pending = inflight.get(key);
     if (pending) {
@@ -134,7 +156,7 @@ export async function translateQuery(
                 engine.translate(text, retryFrom, oppositeTargetLang(result.to), signal)
             );
         }
-        cache.set(key, result);
+        cache.set(key, { result, ts: Date.now() });
         if (cache.size > CACHE_LIMIT) {
             const oldest = cache.keys().next();
             if (!oldest.done && oldest.value !== undefined) {
@@ -201,7 +223,11 @@ export async function translateLong(
     let phonetic: string | undefined;
     const definitions: { pos: string; terms: string[] }[] = [];
     for (let i = 0; i < chunks.length; i++) {
-        const r = await impl(chunks[i], from, to);
+        const chunk = chunks[i];
+        // 受保护内联标签：{var}/<tag>/`code`/%s 翻译前占位、翻译后还原（v3.9.1 对齐）
+        const guarded = protectInlineTokens(chunk);
+        const r = await impl(guarded.text, from, to);
+        const restoredText = guarded.restore(r.text);
         if (!head) {
             head = r;
             phonetic = r.phonetic;
@@ -211,8 +237,8 @@ export async function translateLong(
                 definitions.push(d);
             }
         }
-        parts.push(r.text);
-        pairs.push([chunks[i], r.text]);
+        parts.push(restoredText);
+        pairs.push([chunk, restoredText]);
         if (onProgress) {
             onProgress(i + 1, chunks.length);
         }

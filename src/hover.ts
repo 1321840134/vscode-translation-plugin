@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as config from './config';
 import { AUTO, langName } from './languages';
+import { protectInlineTokens } from './protect';
 import { TranslationResult, translateQuery } from './services';
 import { wordAtPosition } from './word';
 
@@ -82,12 +83,15 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
                     docText.length <= 800 &&
                     docText.trim() !== word.query
                 ) {
-                    const docResult = await translateQuery(docText, AUTO, to);
-                    if (!token.isCancellationRequested && docResult.text.trim() !== docText.trim()) {
+                    // 受保护内联标签：{var}/<tag>/`code` 占位后再翻译（v3.9.1 对齐）
+                    const guarded = protectInlineTokens(docText);
+                    const docResult = await translateQuery(guarded.text, AUTO, to);
+                    const docTranslated = guarded.restore(docResult.text);
+                    if (!token.isCancellationRequested && docTranslated.trim() !== docText.trim()) {
                         md.appendMarkdown('\n\n---\n');
                         md.appendMarkdown('**文档翻译**');
                         md.appendMarkdown('\n\n');
-                        md.appendText(docResult.text);
+                        md.appendText(docTranslated);
                     }
                 }
             } catch {

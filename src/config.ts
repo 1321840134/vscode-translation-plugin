@@ -155,6 +155,25 @@ export function docPreserveSource(): boolean {
     return cfg().get<boolean>('document.preserveSource') ?? false;
 }
 
+/**
+ * 影响翻译产出的引擎配置指纹（进入缓存键）：
+ * 更换镜像/模型/提示词/端点后旧缓存自动失效，避免命中与当前配置不符的结果
+ * （对应参考插件 v3.9.1 修复的文档翻译缓存冲突）。不含密钥明文。
+ */
+export function engineFingerprint(): string {
+    const msKey = microsoftKey();
+    const deeplHost = deeplAuthKey().trim().endsWith(':fx') ? 'free' : 'pro';
+    return [
+        googleHost(),
+        openaiApiBase(),
+        openaiModel(),
+        openaiSystemPrompt(),
+        openaiTemperature(),
+        msKey ? `azure:${microsoftRegion() || 'global'}` : 'edge',
+        deeplAuthKey() ? `deepl:${deeplHost}` : ''
+    ].join('|');
+}
+
 export function youdaoAppKey(): string {
     return cfg().get<string>('youdao.appKey') ?? '';
 }

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 require('./helpers/stub.js').install();
-const { translateLong, chunkText } = require('../out/services/index.js');
+const { translateLong, chunkText, buildCacheKey } = require('../out/services/index.js');
 const { buildSystemPrompt } = require('../out/services/openai.js');
 
 // 注入假翻译实现，验证 translateLong 的合并/对照逻辑（不发网络）
@@ -55,4 +55,21 @@ test('buildSystemPrompt：默认提示', () => {
 test('buildSystemPrompt：自定义提示 + 占位符替换（v3.9.0 OpenAI 高级配置）', () => {
     const p = buildSystemPrompt('将{sourceLang}改为{targetLang}，输出 JSON', 'en', 'ja');
     assert.strictEqual(p, '将英语改为日语，输出 JSON');
+});
+
+test('translateLong：内联标签保护并还原（v3.9.1 对齐）', async () => {
+    const src = '根据 {userId} 调用 <code>getUser()</code> 返回用户';
+    const r = await translateLong(src, 'auto', 'en', undefined, { translateImpl: fakeImpl });
+    // fakeImpl 原样回显（含占位符），restore 后应还原出全部原始 token
+    assert.strictEqual(r.text, `译[${src}]`);
+    assert.ok(r.text.includes('{userId}') && r.text.includes('<code>getUser()</code>'));
+});
+
+test('buildCacheKey：配置指纹入键（v3.9.1 缓存冲突修复）', () => {
+    const a = buildCacheKey('google', 'auto', 'zh-CN', 'hi', 'fp1');
+    const b = buildCacheKey('google', 'auto', 'zh-CN', 'hi', 'fp2');
+    const c = buildCacheKey('google', 'auto', 'en', 'hi', 'fp1');
+    assert.notStrictEqual(a, b, '配置指纹不同则键不同');
+    assert.notStrictEqual(a, c, '方向不同则键不同');
+    assert.strictEqual(a, buildCacheKey('google', 'auto', 'zh-CN', 'hi', 'fp1'), '相同参数键稳定');
 });
