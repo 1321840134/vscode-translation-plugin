@@ -81,6 +81,13 @@ vscodeStub.commands.executeCommand = async (cmd, ...args) => {
     executedCommands.push(cmd);
     return [];
 };
+// QuickPick 交互桩：默认选第一项（等价于直接回车）
+let quickPickBehavior = items => items[0];
+let quickPickCalls = [];
+vscodeStub.window.showQuickPick = async items => {
+    quickPickCalls.push(items);
+    return quickPickBehavior(items);
+};
 
 // 激活扩展（注册命令）
 const { storage } = require('../out/storage.js');
@@ -100,6 +107,8 @@ function reset() {
     statusMessages = [];
     translateCalls = [];
     executedCommands = [];
+    quickPickCalls = [];
+    quickPickBehavior = items => items[0];
     translateBehavior = async text => ({ query: text, from: 'en', to: 'zh-CN', text: `译(${text})`, engineId: 't', engineName: '测试' });
 }
 
@@ -230,9 +239,53 @@ test('右键翻译：选中的单个单词 → 词典悬浮', async () => {
 
 test('右键翻译：选区为句子 → 面板翻译', async () => {
     reset();
-    const editor = makeEditor(['hello world and more'], [sel(0, 0, 0, 16)]);
+    const editor = makeEditor(['hello world and more'], [sel(0, 0, 0, 20)]);
     vscodeStub.window.activeTextEditor = editor;
     await handlers['translation.translate']();
     assert.ok(!executedCommands.includes('editor.action.showHover'), '句子不应触发词典悬浮');
-    assert.deepStrictEqual(translateCalls, ['hello world and'], '应翻译整句进面板');
+    assert.deepStrictEqual(translateCalls, ['hello world and more'], '应翻译整句进面板');
+});
+
+test('翻译并替换：弹出候选列表且用户选择后替换', async () => {
+    reset();
+    // 译文带词典释义，产生多候选
+    translateBehavior = async text => ({
+        query: text, from: 'en', to: 'zh-CN', text: '你好',
+        definitions: [{ pos: 'interjection', terms: ['你好', '哈喽'] }],
+        engineId: 't', engineName: '测试'
+    });
+    const line = 'const a = "hello";';
+    const editor = makeEditor([line], [sel(0, line.indexOf('"hello"') + 1, 0, line.indexOf('"hello"') + 6)]);
+    vscodeStub.window.activeTextEditor = editor;
+    quickPickBehavior = items => items.find(c => c.label === '哈喽');
+    await replaceCmd();
+    assert.strictEqual(quickPickCalls.length, 1, '应弹出一次候选列表');
+    assert.ok(quickPickCalls[0].length >= 2, '候选应含译文与释义');
+    assert.strictEqual(editor.edits.length, 1);
+    assert.strictEqual(editor.edits[0].text, '哈喽');
+});
+
+test('翻译并替换：Esc 取消时不做任何修改', async () => {
+    reset();
+    const line = 'const a = "hello";';
+    const editor = makeEditor([line], [sel(0, line.indexOf('"hello"') + 1, 0, line.indexOf('"hello"') + 6)]);
+    vscodeStub.window.activeTextEditor = editor;
+    quickPickBehavior = () => undefined; // Esc
+    await replaceCmd();
+    assert.strictEqual(editor.edits.length, 0, '取消时不应有编辑');
+    assert.strictEqual(translateCalls.length, 1, '翻译已发生（候选已生成）');
+});
+
+test('翻译并替换：英文译文含命名风格候选', async () => {
+    reset();
+    translateBehavior = async text => ({
+        query: text, from: 'zh-CN', to: 'en', text: 'get user info',
+        engineId: 't', engineName: '测试'
+    });
+    const editor = makeEditor(['// 获取用户信息'], [sel(0, 3, 0, 9)]);
+    vscodeStub.window.activeTextEditor = editor;
+    quickPickBehavior = items => items.find(c => c.description === 'camelCase');
+    await replaceCmd();
+    assert.strictEqual(editor.edits.length, 1);
+    assert.strictEqual(editor.edits[0].text, 'getUserInfo');
 });

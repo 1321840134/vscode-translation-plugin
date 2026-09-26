@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0
+
+翻译并替换改为候选选择制（对齐参考插件交互）+ 设置精简：
+- 翻译并替换不再直接替换：弹出候选列表（主译文/拆分义项/词典释义/camelCase/PascalCase/SNAKE_CASE/kebab-case 命名风格变体），用户选择后替换，Esc 取消
+- 删除冗余设置 `translation.replace.style` 与 `translation.replace.separator`（候选列表已完整覆盖其功能）
+- 设置页分组排序：核心语言方向 → 交互行为 → 面板/历史 → TTS → 引擎密钥
+- 修复 hoverEnabled 代码级兜底与默认值不一致的问题
+- 测试扩至 103 例（候选构建 6 例 + 替换交互 4 例）
+
 ## 0.4.3
 
 交互与健壮性：

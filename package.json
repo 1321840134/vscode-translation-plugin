@@ -2,7 +2,7 @@
   "name": "vscode-translation-plugin",
   "displayName": "Translation",
   "description": "强大的翻译插件：多引擎翻译(微软/Google/DeepL/OpenAI/有道/百度/阿里)、翻译替换、翻译文档、单词本、翻译历史、多引擎语音朗读、自动取词",
-  "version": "0.4.4",
+  "version": "0.5.0",
   "publisher": "vscode-translation-plugin",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -136,7 +136,8 @@
             "alibaba"
           ],
           "default": "microsoft",
-          "description": "默认翻译引擎（微软翻译使用 Edge 公开端点，免费无需配置；Google 免费无需配置；其余需配置对应密钥）"
+          "description": "默认翻译引擎（微软翻译使用 Edge 公开端点，免费无需配置；Google 免费无需配置；其余需配置对应密钥）",
+          "order": 1
         },
         "translation.sourceLanguage": {
           "type": "string",
@@ -164,7 +165,8 @@
             "sv"
           ],
           "default": "auto",
-          "description": "源语言（auto 为自动检测）"
+          "description": "源语言（auto 为自动检测）",
+          "order": 2
         },
         "translation.targetLanguage": {
           "type": "string",
@@ -191,52 +193,62 @@
             "sv"
           ],
           "default": "zh-CN",
-          "description": "目标语言"
+          "description": "目标语言",
+          "order": 3
         },
         "translation.autoSelectWord": {
           "type": "boolean",
           "default": true,
-          "description": "未选中任何文本时，自动提取光标处的单词进行翻译（智能驼峰取词）"
+          "description": "未选中任何文本时，自动提取光标处的单词进行翻译（智能驼峰取词）",
+          "order": 5
         },
         "translation.autoSwapTarget": {
           "type": "boolean",
           "default": true,
-          "description": "当源语言与目标语言相同时，自动切换目标语言（中文↔英文），避免出现中译中/英译英"
+          "description": "当源语言与目标语言相同时，自动切换目标语言（中文↔英文），避免出现中译中/英译英",
+          "order": 4
         },
         "translation.autoTranslateSelection": {
           "type": "boolean",
           "default": false,
-          "description": "选中文本后自动翻译（防抖 600ms，结果静默更新到翻译面板）"
+          "description": "选中文本后自动翻译（防抖 600ms，结果静默更新到翻译面板）",
+          "order": 6
         },
         "translation.hover.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "鼠标悬浮自动翻译（默认关闭）。关闭后通过右键\"翻译\"命令触发词典悬浮：选中单词或光标处按右键翻译即弹出词典卡片"
+          "description": "鼠标悬浮自动翻译（默认关闭）。关闭后通过右键\"翻译\"命令触发词典悬浮：选中单词或光标处按右键翻译即弹出词典卡片",
+          "order": 7
         },
         "translation.hover.translateDocumentation": {
           "type": "boolean",
           "default": true,
-          "description": "悬浮时同时翻译文档注释内容（合并内置悬浮提示并追加译文）"
+          "description": "悬浮时同时翻译文档注释内容（合并内置悬浮提示并追加译文）",
+          "order": 8
         },
         "translation.history.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "记录翻译历史"
+          "description": "记录翻译历史",
+          "order": 10
         },
         "translation.history.limit": {
           "type": "number",
           "default": 200,
-          "description": "翻译历史最大条数"
+          "description": "翻译历史最大条数",
+          "order": 11
         },
         "translation.tts.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "启用语音朗读"
+          "description": "启用语音朗读",
+          "order": 13
         },
         "translation.tts.autoPlay": {
           "type": "boolean",
           "default": false,
-          "description": "翻译完成后自动朗读原文"
+          "description": "翻译完成后自动朗读原文",
+          "order": 15
         },
         "translation.tts.service": {
           "type": "string",
@@ -247,35 +259,20 @@
             "openai"
           ],
           "default": "auto",
-          "description": "语音合成服务：auto = Edge 优先、失败回退；edge/google/openai = 强制指定"
+          "description": "语音合成服务：auto = Edge 优先、失败回退；edge/google/openai = 强制指定",
+          "order": 14
         },
         "translation.tts.openaiModel": {
           "type": "string",
           "default": "gpt-4o-mini-tts",
-          "description": "OpenAI TTS 模型（也可用 tts-1 等）"
+          "description": "OpenAI TTS 模型（也可用 tts-1 等）",
+          "order": 16
         },
         "translation.tts.openaiVoice": {
           "type": "string",
           "default": "alloy",
-          "description": "OpenAI TTS 音色（alloy/echo/fable/onyx/nova/shimmer 等）"
-        },
-        "translation.replace.style": {
-          "type": "string",
-          "enum": [
-            "original",
-            "camelCase",
-            "PascalCase",
-            "snake_case",
-            "kebab-case",
-            "space"
-          ],
-          "default": "original",
-          "description": "翻译并替换：目标语言为英文时译文格式化样式"
-        },
-        "translation.replace.separator": {
-          "type": "string",
-          "default": " ",
-          "description": "翻译并替换：样式为 space 时使用的单词分隔符"
+          "description": "OpenAI TTS 音色（alloy/echo/fable/onyx/nova/shimmer 等）",
+          "order": 17
         },
         "translation.panel.position": {
           "type": "string",
@@ -286,89 +283,106 @@
             "two"
           ],
           "default": "beside",
-          "description": "翻译面板打开的位置"
+          "description": "翻译面板打开的位置",
+          "order": 9
         },
         "translation.google.host": {
           "type": "string",
           "default": "translate.googleapis.com",
-          "description": "Google 翻译接口域名（可修改为可用的镜像域名）"
+          "description": "Google 翻译接口域名（可修改为可用的镜像域名）",
+          "order": 20
         },
         "translation.deepl.authKey": {
           "type": "string",
           "default": "",
-          "description": "DeepL 身份验证密钥（DeepL API Free 的密钥以 :fx 结尾）"
+          "description": "DeepL 身份验证密钥（DeepL API Free 的密钥以 :fx 结尾）",
+          "order": 23
         },
         "translation.microsoft.subscriptionKey": {
           "type": "string",
           "default": "",
-          "description": "可选：Azure Text Translation 订阅密钥（不填则自动使用 Edge 免费翻译端点）"
+          "description": "可选：Azure Text Translation 订阅密钥（不填则自动使用 Edge 免费翻译端点）",
+          "order": 21
         },
         "translation.microsoft.region": {
           "type": "string",
           "default": "",
-          "description": "微软翻译服务区域，如 global、eastasia"
+          "description": "微软翻译服务区域，如 global、eastasia",
+          "order": 22
         },
         "translation.openai.apiKey": {
           "type": "string",
           "default": "",
-          "description": "OpenAI API Key"
+          "description": "OpenAI API Key",
+          "order": 24
         },
         "translation.openai.model": {
           "type": "string",
           "default": "gpt-4o-mini",
-          "description": "OpenAI 翻译使用的模型"
+          "description": "OpenAI 翻译使用的模型",
+          "order": 25
         },
         "translation.openai.apiBase": {
           "type": "string",
           "default": "https://api.openai.com/v1",
-          "description": "OpenAI API 地址（可改为兼容接口）"
+          "description": "OpenAI API 地址（可改为兼容接口）",
+          "order": 26
         },
         "translation.openai.systemPrompt": {
           "type": "string",
           "default": "",
-          "description": "OpenAI 高级配置：自定义系统提示词，支持 {sourceLang}/{targetLang} 占位符，留空使用默认提示"
+          "description": "OpenAI 高级配置：自定义系统提示词，支持 {sourceLang}/{targetLang} 占位符，留空使用默认提示",
+          "order": 27
         },
         "translation.openai.temperature": {
           "type": "number",
           "default": 0.2,
           "minimum": 0,
           "maximum": 2,
-          "description": "OpenAI 高级配置：采样温度（0-2，越低越稳定）"
+          "description": "OpenAI 高级配置：采样温度（0-2，越低越稳定）",
+          "order": 28
         },
         "translation.document.preserveSource": {
           "type": "boolean",
           "default": false,
-          "description": "文档翻译时保留原文：输出\"原文/译文\"逐段对照"
+          "description": "文档翻译时保留原文：输出\"原文/译文\"逐段对照",
+          "order": 12
         },
         "translation.youdao.appKey": {
           "type": "string",
           "default": "",
-          "description": "有道智云应用 ID"
+          "description": "有道智云应用 ID",
+          "order": 29
         },
         "translation.youdao.appSecret": {
           "type": "string",
           "default": "",
-          "description": "有道智云应用密钥"
+          "description": "有道智云应用密钥",
+          "order": 30
         },
         "translation.baidu.appId": {
           "type": "string",
           "default": "",
-          "description": "百度翻译 APP ID"
+          "description": "百度翻译 APP ID",
+          "order": 31
         },
         "translation.baidu.appSecret": {
           "type": "string",
           "default": "",
-          "description": "百度翻译密钥"
+          "description": "百度翻译密钥",
+          "order": 32
         },
         "translation.alibaba.accessKeyId": {
           "type": "string",
           "default": "",
-          "description": "阿里云 AccessKeyId（机器翻译通用版）"
+          "description": "阿里云 AccessKeyId（机器翻译通用版）",
+          "order": 33
         },
         "translation.alibaba.accessKeySecret": {
           "type": "string",
           "default": "",
-          "description": "阿里云 AccessKeySecret"
+          "description": "阿里云 AccessKeySecret",
+          "order": 34
         }
       }
     }

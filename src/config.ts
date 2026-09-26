@@ -87,14 +87,6 @@ export function autoSwapTarget(): boolean {
     return cfg().get<boolean>('autoSwapTarget') ?? true;
 }
 
-export function replaceStyle(): string {
-    return cfg().get<string>('replace.style') ?? 'original';
-}
-
-export function replaceSeparator(): string {
-    return cfg().get<string>('replace.separator') ?? ' ';
-}
-
 export function panelPosition(): vscode.ViewColumn {
     switch (cfg().get<string>('panel.position')) {
         case 'active':

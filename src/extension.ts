@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 import * as config from './config';
+import { buildReplaceCandidates } from './candidates';
 import { TranslationHoverProvider } from './hover';
 import { AUTO, LANGUAGES, langName } from './languages';
 import { exportWordBook, showPanel, showResultsInPanel, updatePanelResults } from './panel';
 import { ENGINES, TranslationResult, translateLong, translateQuery } from './services';
 import { initStatusBar, updateStatusBar } from './statusbar';
 import { storage } from './storage';
-import { formatTranslated } from './textFormat';
 import { wordAtPosition } from './word';
 
 /** 每日一词的内置词库（用户单词本非空时优先使用单词本） */
@@ -80,8 +80,6 @@ async function translateAndReplaceCommandSafe(): Promise<void> {
     if (!editor) {
         return;
     }
-    const style = config.replaceStyle();
-    const separator = config.replaceSeparator();
     const from = config.sourceLanguage();
     const to = config.targetLanguage();
 
@@ -110,46 +108,52 @@ async function translateAndReplaceCommandSafe(): Promise<void> {
     await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Window, title: '正在翻译并替换…' },
         async progress => {
-            const translations: (string | undefined)[] = [];
+            let replaced = 0;
+            let lastRange: vscode.Range | undefined;
+            let lastText: string | undefined;
             for (let i = 0; i < targets.length; i++) {
                 progress.report({ message: `${i + 1}/${targets.length}` });
+                let result;
                 try {
-                    const result = await translateQuery(targets[i].query, from, to);
-                    translations.push(formatTranslated(result.text, style, separator));
+                    result = await translateQuery(targets[i].query, from, to);
                 } catch (e) {
-                    translations.push(undefined);
                     void vscode.window.showErrorMessage(`翻译失败: ${errMessage(e)}`);
+                    continue;
                 }
-            }
-            let replaced = 0;
-            let applied = false;
-            try {
-                applied = await editor.edit(editBuilder => {
-                    for (let i = 0; i < targets.length; i++) {
-                        const t = translations[i];
-                        if (t !== undefined && t.length > 0) {
-                            editBuilder.replace(targets[i].range, t);
-                            replaced++;
-                        }
-                    }
+                // 候选列表：主译文/义项/词典释义/命名风格变体，由用户选择后替换
+                const candidates = buildReplaceCandidates(result);
+                if (candidates.length === 0) {
+                    continue;
+                }
+                const picked = await vscode.window.showQuickPick(candidates, {
+                    placeHolder: `替换为…（原文: ${targets[i].query.slice(0, 50)}）`
                 });
-            } catch (e) {
-                void vscode.window.showErrorMessage(
-                    `替换失败：当前文档不可编辑（${errMessage(e)}）`
-                );
-                return;
-            }
-            if (!applied) {
-                void vscode.window.showWarningMessage('替换未生效：当前文档不可编辑（如只读视图、diff 或输出面板）');
-                return;
+                if (!picked) {
+                    continue; // Esc/关闭：跳过该选区，不做任何修改
+                }
+                let applied = false;
+                try {
+                    applied = await editor.edit(editBuilder => {
+                        editBuilder.replace(targets[i].range, picked.label);
+                    });
+                } catch (e) {
+                    void vscode.window.showErrorMessage(
+                        `替换失败：当前文档不可编辑（${errMessage(e)}）`
+                    );
+                    return;
+                }
+                if (!applied) {
+                    void vscode.window.showWarningMessage('替换未生效：当前文档不可编辑（如只读视图、diff 或输出面板）');
+                    return;
+                }
+                replaced++;
+                lastRange = targets[i].range;
+                lastText = picked.label;
             }
             if (replaced > 0) {
-                // 替换后选中译文，便于直观核对（与参考插件行为一致）
+                // 替换后选中最后一次的译文，便于直观核对
                 try {
-                    const lastIdx = translations.length - 1;
-                    const lastText = translations[lastIdx];
-                    const lastRange = targets[lastIdx].range;
-                    if (lastText && !lastText.includes('\n') && lastRange.isSingleLine) {
+                    if (lastRange && lastText && !lastText.includes('\n') && lastRange.isSingleLine) {
                         editor.selection = new vscode.Selection(
                             lastRange.start,
                             lastRange.start.translate(0, lastText.length)

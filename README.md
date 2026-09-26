@@ -11,7 +11,7 @@
 - **翻译对话框**：独立翻译面板，随时输入翻译（相当于参考插件的翻译对话框）
 - **翻译**：选中文本翻译；无选区时自动提取光标处单词（智能驼峰/下划线取词）
 - **选中自动翻译**：选中文本后自动翻译并静默更新到面板（可选开启）
-- **翻译并替换**：将选中文本替换为译文；目标语言为英文时可格式化为 camelCase、snake_case 等命名风格
+- **翻译并替换（候选选择制）**：翻译后弹出候选列表（主译文、拆分义项、词典释义、camelCase/PascalCase/SNAKE_CASE/kebab-case 等命名风格变体），自主选择后替换；Esc 取消不做任何修改
 - **文档翻译（整篇）**：将整个文档翻译后在新窗口打开；可开启"保留原文"输出逐段原文/译文对照（`translation.document.preserveSource`）；内联技术标签（`{var}`、`<tag>`、`` `code` ``、`%s` 等）自动保护，翻译后原样还原
 - **文本转语音**：Edge 神经网络语音（默认）、OpenAI TTS（可配模型/音色）、Google TTS 三引擎，auto 模式自动回退；支持自动朗读
 - **对话框快捷键**：`Alt+S`/`Alt+T` 切换源/目标语言、`Alt+Enter` 朗读原文、`Ctrl+F` 收藏、`Ctrl+H` 历史、`Ctrl+Shift+C` 复制译文、`Ctrl+Shift+Backspace` 清空输入
@@ -73,7 +73,6 @@
 | `translation.tts.enabled` | `true` | 启用语音朗读 |
 | `translation.tts.service` | `auto` | 语音服务：auto = Edge 优先、Google 兜底 |
 | `translation.tts.autoPlay` | `false` | 翻译后自动朗读原文 |
-| `translation.replace.style` | `original` | 翻译并替换的英文命名风格 |
 | `translation.history.enabled` | `true` | 记录翻译历史 |
 | `translation.history.limit` | `200` | 历史最大条数 |
 | `translation.panel.position` | `beside` | 面板打开位置 |
