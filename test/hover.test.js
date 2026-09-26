@@ -2,6 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { install, setConfig, vscodeStub } = require('./helpers/stub.js');
 install();
+// 词典行为测试统一在开启自动悬浮的状态下进行（默认已改为关闭）
+setConfig({ 'translation.hover.enabled': true });
 
 // ---- 模拟 VSCode 的 hover 分派语义 ----
 // executeHoverProvider 会调用所有已注册的 hover provider（包括我们自己），
@@ -147,4 +149,49 @@ test('hover：非单词位置返回 undefined', async () => {
     const doc = { uri: 'x', lineAt: () => ({ text: '   ===   ' }) };
     assert.strictEqual(await provider.provideHover(doc, pos(4), token()), undefined);
     assert.strictEqual(translateCalls.length, 0);
+});
+
+test('hover：默认关闭时鼠标悬浮不自动触发（无选区）', async () => {
+    reset();
+    setConfig({ 'translation.hover.enabled': false });
+    vscodeStub.window.activeTextEditor = undefined;
+    try {
+        const provider = new TranslationHoverProvider();
+        assert.strictEqual(await provider.provideHover(fakeDoc(), pos(22), token()), undefined);
+        assert.strictEqual(translateCalls.length, 0);
+    } finally {
+        setConfig({ 'translation.hover.enabled': true });
+    }
+});
+
+test('hover：关闭状态下选中文本（右键翻译命令触发）仍提供词典', async () => {
+    reset();
+    setConfig({ 'translation.hover.enabled': false });
+    vscodeStub.window.activeTextEditor = {
+        selection: { isEmpty: false, contains: p => p.character >= 18 && p.character <= 28 }
+    };
+    try {
+        const provider = new TranslationHoverProvider();
+        const hover = await provider.provideHover(fakeDoc(), pos(22), token());
+        assert.ok(hover, '选区内的位置应返回词典');
+        assert.ok(hover.contents.value.includes('user info'));
+    } finally {
+        setConfig({ 'translation.hover.enabled': true });
+        vscodeStub.window.activeTextEditor = undefined;
+    }
+});
+
+test('hover：关闭状态下选区外的位置不触发', async () => {
+    reset();
+    setConfig({ 'translation.hover.enabled': false });
+    vscodeStub.window.activeTextEditor = {
+        selection: { isEmpty: false, contains: () => false }
+    };
+    try {
+        const provider = new TranslationHoverProvider();
+        assert.strictEqual(await provider.provideHover(fakeDoc(), pos(22), token()), undefined);
+    } finally {
+        setConfig({ 'translation.hover.enabled': true });
+        vscodeStub.window.activeTextEditor = undefined;
+    }
 });

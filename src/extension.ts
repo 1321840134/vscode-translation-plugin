@@ -19,48 +19,38 @@ const BUILTIN_WORDS = [
     'candid', 'vivid', 'crucial', 'inevitable'
 ];
 
-interface WordAtCursor {
-    /** 供翻译用的查询文本（驼峰已拆分） */
-    query: string;
-    /** 编辑器中的原文 */
-    raw: string;
-    range: vscode.Range;
-}
-
-/** 收集要翻译的文本：优先选区，其次光标处单词 */
-function collectQueries(editor: vscode.TextEditor): { queries: string[]; word?: WordAtCursor } {
-    const queries: string[] = [];
-    for (const sel of editor.selections) {
-        const t = editor.document.getText(sel).trim();
-        if (t && !queries.includes(t)) {
-            queries.push(t);
-        }
-    }
-    let word: WordAtCursor | undefined;
-    if (queries.length === 0 && config.autoSelectWord()) {
-        word = wordAtPosition(editor.document, editor.selection.active);
-        if (word) {
-            queries.push(word.query);
-        }
-    }
-    return { queries, word };
-}
-
 function errMessage(e: unknown): string {
     return e instanceof Error ? e.message : String(e);
-}
-
-async function translateSelectionsCommand(): Promise<void> {
+}async function translateSelectionsCommand(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
         showPanel({ focusInput: true });
         return;
     }
-    const { queries } = collectQueries(editor);
-    if (queries.length === 0) {
+    const sel = editor.selection;
+    const selText = sel && !sel.isEmpty ? editor.document.getText(sel).trim() : '';
+
+    // 单词级查询（选中单词或光标处取词）→ 选中该词并弹出词典悬浮卡片
+    let wordRange: vscode.Range | undefined;
+    if (selText && selText.length <= 40 && !/\s/.test(selText)) {
+        wordRange = sel;
+    } else if (!selText && config.autoSelectWord()) {
+        const word = wordAtPosition(editor.document, editor.selection.active);
+        if (word) {
+            wordRange = word.range;
+        }
+    }
+    if (wordRange) {
+        editor.selection = new vscode.Selection(wordRange.start, wordRange.end);
+        void vscode.commands.executeCommand('editor.action.showHover');
+        return;
+    }
+
+    if (!selText) {
         showPanel({ focusInput: true });
         return;
     }
+    const queries = [selText];
     const from = config.sourceLanguage();
     const to = config.targetLanguage();
     await vscode.window.withProgress(
@@ -132,16 +122,42 @@ async function translateAndReplaceCommandSafe(): Promise<void> {
                 }
             }
             let replaced = 0;
-            await editor.edit(editBuilder => {
-                for (let i = 0; i < targets.length; i++) {
-                    const t = translations[i];
-                    if (t !== undefined && t.length > 0) {
-                        editBuilder.replace(targets[i].range, t);
-                        replaced++;
+            let applied = false;
+            try {
+                applied = await editor.edit(editBuilder => {
+                    for (let i = 0; i < targets.length; i++) {
+                        const t = translations[i];
+                        if (t !== undefined && t.length > 0) {
+                            editBuilder.replace(targets[i].range, t);
+                            replaced++;
+                        }
                     }
-                }
-            });
+                });
+            } catch (e) {
+                void vscode.window.showErrorMessage(
+                    `替换失败：当前文档不可编辑（${errMessage(e)}）`
+                );
+                return;
+            }
+            if (!applied) {
+                void vscode.window.showWarningMessage('替换未生效：当前文档不可编辑（如只读视图、diff 或输出面板）');
+                return;
+            }
             if (replaced > 0) {
+                // 替换后选中译文，便于直观核对（与参考插件行为一致）
+                try {
+                    const lastIdx = translations.length - 1;
+                    const lastText = translations[lastIdx];
+                    const lastRange = targets[lastIdx].range;
+                    if (lastText && !lastText.includes('\n') && lastRange.isSingleLine) {
+                        editor.selection = new vscode.Selection(
+                            lastRange.start,
+                            lastRange.start.translate(0, lastText.length)
+                        );
+                    }
+                } catch {
+                    // 选区恢复失败不影响替换结果
+                }
                 void vscode.window.setStatusBarMessage(`已替换 ${replaced} 处文本`, 3000);
             }
         }

@@ -12,7 +12,7 @@ test('wordAtPosition：提取英文单词', () => {
     const w = wordAtPosition(doc(['const hello = 1;']), { line: 0, character: 7 });
     assert.strictEqual(w.query, 'hello');
     assert.strictEqual(w.raw, 'hello');
-    assert.deepStrictEqual({ s: w.range.startChar, e: w.range.endChar }, { s: 6, e: 11 });
+    assert.deepStrictEqual({ s: w.range.start.character, e: w.range.end.character }, { s: 6, e: 11 });
 });
 
 test('wordAtPosition：驼峰拆分（智能取词）', () => {

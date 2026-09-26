@@ -10,7 +10,7 @@ const DEFAULTS = {
     'translation.autoSelectWord': true,
     'translation.autoSwapTarget': true,
     'translation.autoTranslateSelection': false,
-    'translation.hover.enabled': true,
+    'translation.hover.enabled': false,
     'translation.hover.translateDocumentation': true,
     'translation.history.enabled': true,
     'translation.history.limit': 200,
@@ -54,11 +54,10 @@ class FakeConfiguration {
 }
 
 class FakeRange {
-    constructor(a, b, c, d) {
-        this.startLine = a;
-        this.startChar = b;
-        this.endLine = c;
-        this.endChar = d;
+    constructor(startLine, startChar, endLine, endChar) {
+        this.start = { line: startLine, character: startChar };
+        this.end = { line: endLine, character: endChar };
+        this.isSingleLine = startLine === endLine;
     }
 }
 
@@ -117,6 +116,21 @@ const vscodeStub = {
         }
     },
     Range: FakeRange,
+    Selection: class Selection extends FakeRange {
+        constructor(a, b, c, d) {
+            // 支持 Selection(start, end) 双对象 与 Selection(sl, sc, el, ec) 四数字
+            const sPos = a && a.line !== undefined ? a : { line: a, character: b };
+            const ePos =
+                c && c.line !== undefined
+                    ? c
+                    : c === undefined && b && b.line !== undefined
+                        ? b
+                        : { line: c, character: d };
+            super(sPos.line, sPos.character, ePos.line, ePos.character);
+            this.anchor = sPos;
+            this.active = ePos;
+        }
+    },
     CancellationTokenSource: class {
         constructor() {
             this.token = { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => undefined }) };

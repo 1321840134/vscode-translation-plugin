@@ -2,7 +2,7 @@
   "name": "vscode-translation-plugin",
   "displayName": "Translation",
   "description": "强大的翻译插件：多引擎翻译(微软/Google/DeepL/OpenAI/有道/百度/阿里)、翻译替换、翻译文档、单词本、翻译历史、多引擎语音朗读、自动取词",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "publisher": "vscode-translation-plugin",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -210,8 +210,8 @@
         },
         "translation.hover.enabled": {
           "type": "boolean",
-          "default": true,
-          "description": "悬浮翻译：鼠标悬停在单词上时显示词典翻译（含音标/释义）"
+          "default": false,
+          "description": "鼠标悬浮自动翻译（默认关闭）。关闭后通过右键\"翻译\"命令触发词典悬浮：选中单词或光标处按右键翻译即弹出词典卡片"
         },
         "translation.hover.translateDocumentation": {
           "type": "boolean",

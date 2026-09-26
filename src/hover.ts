@@ -26,8 +26,15 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         position: vscode.Position,
         token: vscode.CancellationToken
     ): Promise<vscode.Hover | undefined> {
-        if (mergingDocs || !config.hoverEnabled()) {
+        if (mergingDocs) {
             return undefined;
+        }
+        if (!config.hoverEnabled()) {
+            // 自动悬浮已关闭：仅当选中了文本（右键"翻译"命令触发的词典查询）时工作
+            const sel = vscode.window.activeTextEditor?.selection;
+            if (!sel || sel.isEmpty || !sel.contains(position)) {
+                return undefined;
+            }
         }
         const word = wordAtPosition(document, position);
         if (!word) {
