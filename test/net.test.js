@@ -1,8 +1,12 @@
 const test = require('node:test');
+const { after } = require('node:test');
 const assert = require('node:assert');
 const http = require('node:http');
 const net = require('node:net');
-const { request, requestJson, formBody, formPairsBody } = require('../out/net.js');
+const { request, requestJson, formBody, formPairsBody, disposeHttpAgents } = require('../out/net.js');
+
+// keepAlive 连接池的空闲 socket 会阻止测试进程退出，结束后销毁
+after(() => disposeHttpAgents());
 
 async function withServer(handler, fn) {
     const server = http.createServer(handler);
@@ -10,6 +14,10 @@ async function withServer(handler, fn) {
     try {
         return await fn(server.address().port);
     } finally {
+        // keepAlive 连接会阻止 server.close 完成，强制断开全部连接
+        if (typeof server.closeAllConnections === 'function') {
+            server.closeAllConnections();
+        }
         server.close();
     }
 }

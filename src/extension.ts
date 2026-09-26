@@ -1,10 +1,12 @@
 import * as vscode from 'vscode';
 import * as config from './config';
 import { buildReplaceCandidates } from './candidates';
-import { TranslationHoverProvider } from './hover';
+import { TranslationHoverProvider, extractPlainText } from './hover';
 import { AUTO, LANGUAGES, langName } from './languages';
 import { exportWordBook, showPanel, showResultsInPanel } from './panel';
+import { protectInlineTokens } from './protect';
 import { ENGINES, TranslationResult, clearCache, translateLong, translateQuery } from './services';
+import { disposeHttpAgents } from './net';
 import { initStatusBar, updateStatusBar } from './statusbar';
 import { storage } from './storage';
 import { wordAtPosition } from './word';
@@ -302,6 +304,7 @@ export function activate(context: vscode.ExtensionContext): void {
         ['translation.translate', translateSelectionsCommand],
         ['translation.translateAndReplace', translateAndReplaceCommandSafe],
         ['translation.translateDocument', translateDocumentCommand],
+        ['translation.translateDocComment', translateDocCommentCommand],
         ['translation.switchEngine', switchEngineCommand],
         ['translation.selectTargetLanguage', selectTargetLanguageCommand],
         ['translation.selectSourceLanguage', selectSourceLanguageCommand],
@@ -332,6 +335,54 @@ export function activate(context: vscode.ExtensionContext): void {
     );
 }
 
+/** 翻译文档注释（对齐参考插件的快速文档翻译 Ctrl+Shift+Q）：提取悬停处内置文档 → 翻译 → 面板显示 */
+async function translateDocCommentCommand(): Promise<void> {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        return;
+    }
+    const position = editor.selection.active;
+    let docText = '';
+    try {
+        const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+            'vscode.executeHoverProvider',
+            editor.document.uri,
+            position
+        );
+        docText = extractPlainText(hovers);
+    } catch {
+        // 内置文档获取失败时退回选区/取词文本
+    }
+    if (!docText) {
+        const selText = editor.document.getText(editor.selection).trim();
+        docText = selText || wordAtPosition(editor.document, position)?.query || '';
+    }
+    if (!docText) {
+        void vscode.window.showWarningMessage('未找到可翻译的文档内容');
+        return;
+    }
+    await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Window, title: '正在翻译文档…' },
+        async () => {
+            try {
+                const guarded = protectInlineTokens(docText.slice(0, 800));
+                const result = await translateQuery(guarded.text, AUTO, config.targetLanguage());
+                const restored = { ...result, text: guarded.restore(result.text) };
+                storage.pushHistory({
+                    query: docText.slice(0, 100),
+                    translation: restored.text,
+                    from: restored.from,
+                    to: restored.to,
+                    engineName: restored.engineName
+                });
+                showResultsInPanel([restored]);
+            } catch (e) {
+                void vscode.window.showErrorMessage(`文档翻译失败: ${errMessage(e)}`);
+            }
+        }
+    );
+}
+
 /** 首次安装后的一次性使用引导 */
 function showFirstRunGuide(context: vscode.ExtensionContext): void {
     const GUIDE_KEY = 'translation.guideShown';
@@ -359,4 +410,5 @@ function showFirstRunGuide(context: vscode.ExtensionContext): void {
 
 export function deactivate(): void {
     storage.flush();
+    disposeHttpAgents();
 }

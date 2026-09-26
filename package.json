@@ -2,7 +2,7 @@
   "name": "vscode-translation-plugin",
   "displayName": "Translation",
   "description": "强大的翻译插件：多引擎翻译(微软/Google/DeepL/OpenAI/有道/百度/阿里)、翻译替换、翻译文档、单词本、翻译历史、多引擎语音朗读、自动取词",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "publisher": "vscode-translation-plugin",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -76,6 +76,10 @@
       {
         "command": "translation.wordOfTheDay",
         "title": "翻译: 每日一词"
+      },
+      {
+        "command": "translation.translateDocComment",
+        "title": "翻译: 翻译文档注释(悬浮处文档)"
       }
     ],
     "keybindings": [
@@ -100,6 +104,12 @@
         "command": "translation.switchEngine",
         "key": "ctrl+alt+s",
         "mac": "ctrl+cmd+y"
+      },
+      {
+        "command": "translation.translateDocComment",
+        "key": "ctrl+shift+q",
+        "mac": "ctrl+cmd+j",
+        "when": "editorTextFocus"
       }
     ],
     "menus": {
@@ -118,6 +128,11 @@
           "command": "translation.translateDocument",
           "when": "editorTextFocus",
           "group": "translation@3"
+        },
+        {
+          "command": "translation.translateDocComment",
+          "when": "editorTextFocus",
+          "group": "translation@4"
         }
       ]
     },

@@ -3,6 +3,16 @@ import * as https from 'https';
 import * as net from 'net';
 import * as tls from 'tls';
 
+// 连接复用：避免每次请求重新 DNS + TCP + TLS 握手（对低版本 Node 扩展宿主尤其重要）
+const keepAliveAgent = new https.Agent({ keepAlive: true, maxSockets: 8, keepAliveMsecs: 15000 });
+const plainAgent = new http.Agent({ keepAlive: true, maxSockets: 8, keepAliveMsecs: 15000 });
+
+/** 销毁连接池（扩展停用/测试清理时调用） */
+export function disposeHttpAgents(): void {
+    keepAliveAgent.destroy();
+    plainAgent.destroy();
+}
+
 export interface HttpResponse {
     status: number;
     buffer: Buffer;
@@ -93,13 +103,16 @@ export function request(url: string, options: RequestOptions = {}): Promise<Http
                         return;
                     }
                     const socket = await tunnel(proxyUrl, u.hostname, Number(defaultPort), timeout);
-                    // 注意：自定义 createConnection 返回的 socket 会被视作已完成 TLS 的连接，
-                    // 必须自行在隧道上发起 TLS 握手，否则发送的是明文 HTTP
+                    // 注意 1：自定义 createConnection 返回的 socket 会被视作已完成 TLS 的连接，
+                    // 必须自行在隧道上发起 TLS 握手，否则发送的是明文 HTTP；
+                    // 注意 2：此处不能设置 agent（false 会新建默认 Agent 并忽略 createConnection，
+                    // agent 未定义 + 提供 createConnection 才会走隧道）
                     (reqOpts as { createConnection?: unknown }).createConnection = () =>
                         tls.connect({ socket, servername: u.hostname });
+                } else {
+                    reqOpts.agent = isHttps ? keepAliveAgent : plainAgent;
                 }
-                const req = mod.request(reqOpts, res => {
-                    const status = res.statusCode ?? 0;
+                const req = mod.request(reqOpts, res => {                    const status = res.statusCode ?? 0;
                     const loc = res.headers.location;
                     const location = Array.isArray(loc) ? loc[0] : loc;
                     if (status >= 300 && status < 400 && location && depth < 4) {

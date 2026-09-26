@@ -76,21 +76,20 @@ function reset() {
     translateCalls = [];
 }
 
-test('hover：单词翻译 + 文档翻译，且不无限递归', async () => {
+test('hover：单词词典卡片（单请求，不做串行文档翻译）', async () => {
     reset();
     const provider = new TranslationHoverProvider();
-    const t = test.context;
     const hover = await Promise.race([
         provider.provideHover(fakeDoc(), pos(22), token()),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('悬浮 Promise 未在 3 秒内完成（疑似无限递归/挂起）')), 3000))
+        new Promise((_, rej) => setTimeout(() => rej(new Error('悬浮 Promise 未在 3 秒内完成（疑似挂起）')), 3000))
     ]);
     assert.ok(hover, '应返回 Hover');
     const value = hover.contents.value;
     assert.ok(value.includes('user info'), '应包含单词翻译');
     assert.ok(value.includes('TRANSLATED('), '应包含词典结果');
-    assert.ok(value.includes('文档翻译'), '应包含文档翻译段落');
-    assert.ok(value.includes('TRANSLATED(UserInfo'), '文档内容应被翻译');
-    assert.strictEqual(hoverDispatchCount, 1, 'executeHoverProvider 只应分发一次');
+    assert.ok(!value.includes('文档翻译'), '词典卡片不应包含文档翻译段落');
+    assert.strictEqual(translateCalls.length, 1, '词典卡片只应发起一次翻译请求');
+    assert.strictEqual(hoverDispatchCount, 0, '不应调用 executeHoverProvider');
     assert.ok(hover.contents.value.includes('英语'), '方向标注应使用换向后的目标语言');
 });
 
@@ -101,26 +100,6 @@ test('hover：中文查询词触发换向目标显示（回归 0.2.4）', async 
     const hover = await provider.provideHover(doc, pos(4), token());
     assert.ok(hover.contents.value.includes('英语'), '标注应显示 英语（en）');
     assert.ok(!hover.contents.value.includes('→ 中文（简体）*'), '不应显示 中文简体→中文简体');
-});
-
-test('hover：过滤本插件自身产生的内容', async () => {
-    reset();
-    const self = new vscodeStub.MarkdownString();
-    self.appendMarkdown('$(translations) **user info**\n\nTRANSLATED(user info)');
-    registeredProviders.push({
-        async provideHover() {
-            return new vscodeStub.Hover([self]);
-        }
-    });
-    try {
-        const provider = new TranslationHoverProvider();
-        const hover = await provider.provideHover(fakeDoc(), pos(22), token());
-        // 自身内容不进入文档翻译（否则会把译文再翻译一遍）
-        const docPart = hover.contents.value.split('文档翻译')[1] ?? '';
-        assert.ok(!docPart.includes('TRANSLATED(TRANSLATED'), '不应二次翻译自身输出');
-    } finally {
-        registeredProviders.pop();
-    }
 });
 
 test('hover：取消后不返回内容', async () => {

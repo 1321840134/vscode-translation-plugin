@@ -241,6 +241,50 @@ test('右键翻译：选区为句子 → 面板翻译', async () => {
     assert.deepStrictEqual(translateCalls, ['hello world and more'], '应翻译整句进面板');
 });
 
+test('文档注释翻译：提取内置文档 → 翻译（含标签保护）→ 面板', async () => {
+    reset();
+    const editor = makeEditor(['const userInfo = getUserInfo(); // 用户信息'], [sel(0, 6, 0, 6)]);
+    vscodeStub.window.activeTextEditor = editor;
+    // 模拟内置 hover 返回文档内容（含需保护的占位符）
+    const savedExec = vscodeStub.commands.executeCommand;
+    vscodeStub.commands.executeCommand = async cmd => {
+        executedCommands.push(cmd);
+        if (cmd === 'vscode.executeHoverProvider') {
+            const md = new vscodeStub.MarkdownString();
+            md.appendMarkdown('UserInfo 获取 {userId} 对应的用户记录');
+            return [new vscodeStub.Hover([md])];
+        }
+        return [];
+    };
+    try {
+        // mock 翻译原样回显，验证 protect 占位与还原
+        translateBehavior = async text => ({
+            query: text, from: 'zh-CN', to: 'en', text: `T[${text}]`, engineId: 't', engineName: '测试'
+        });
+        await handlers['translation.translateDocComment']();
+        assert.deepStrictEqual(translateCalls, ['UserInfo 获取 ⟦0⟧ 对应的用户记录'], '占位符应替换技术 token');
+    } finally {
+        vscodeStub.commands.executeCommand = savedExec;
+    }
+});
+
+test('文档注释翻译：无文档时回退光标处单词', async () => {
+    reset();
+    const editor = makeEditor(['getUserInfo();'], [sel(0, 6, 0, 6)]);
+    vscodeStub.window.activeTextEditor = editor;
+    const savedExec = vscodeStub.commands.executeCommand;
+    vscodeStub.commands.executeCommand = async cmd => {
+        executedCommands.push(cmd);
+        return []; // 无内置 hover
+    };
+    try {
+        await handlers['translation.translateDocComment']();
+        assert.deepStrictEqual(translateCalls, ['get user info']);
+    } finally {
+        vscodeStub.commands.executeCommand = savedExec;
+    }
+});
+
 test('翻译并替换：弹出候选列表且用户选择后替换', async () => {
     reset();
     // 译文带词典释义，产生多候选
