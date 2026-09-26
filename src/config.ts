@@ -71,7 +71,7 @@ export function alibabaAccessKeySecret(): string {
 }
 
 export function hoverEnabled(): boolean {
-    return cfg().get<boolean>('hover.enabled') ?? true;
+    return cfg().get<boolean>('hover.enabled') ?? false;
 }
 
 export function hoverTranslateDocs(): boolean {
