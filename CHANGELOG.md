@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.1
+
+设置与代码精简（全量冗余审计）：
+- 删除设置 `translation.hover.translateDocumentation`（文档翻译跟随词典悬浮始终启用）、`translation.autoSelectWord`（自动取词为固定行为）、`translation.autoTranslateSelection`（连同选中自动翻译功能移除，与右键/快捷键翻译重叠）
+- 修复自动朗读双触发：宿主与 Webview 各朗读一遍，改为宿主单点控制
+- 引擎配置（镜像/模型/密钥）变更后立即自动清空翻译缓存（不再等待 TTL 过期）
+- 移除死代码：describeDirection、edgeTtsAvailable、postResultsQuiet、spaceSeparator 参数、调试脚本 debug-edge-ws.js
+- 设置项从 34 精简至 29，并按功能分组排序
+
 ## 0.5.0
 
 翻译并替换改为候选选择制（对齐参考插件交互）+ 设置精简：

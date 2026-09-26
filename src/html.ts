@@ -134,7 +134,6 @@ kbd {
   var state = vscode.getState() || { query: '', from: 'auto', tab: 'translate' };
   var languages = [];
   var lastResults = [];
-  var autoPlay = false;
   var historyData = [];
   var wordData = [];
   var currentAudio = null;
@@ -448,7 +447,6 @@ kbd {
     switch (m.type) {
       case 'init':
         languages = m.languages || [];
-        autoPlay = !!m.autoPlay;
         if (m.from) { state.from = m.from; }
         if (m.to) { state.to = m.to; }
         populateLangs();
@@ -460,9 +458,6 @@ kbd {
         setLoading(false);
         renderResults(m.results);
         if (m.query) { $('query').value = m.query; }
-        if (autoPlay && m.results && m.results.length && m.results[0].query) {
-          send('speak', { text: m.results[0].query, lang: m.results[0].from });
-        }
         break;
       case 'error':
         setLoading(false);

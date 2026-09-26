@@ -75,7 +75,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         );
 
         // 文档翻译：合并并翻译内置悬浮内容（IDEA 插件的"文档翻译"对应能力）
-        if (config.hoverTranslateDocs()) {
+        {
             mergingDocs = true;
             try {
                 const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(

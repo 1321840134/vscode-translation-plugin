@@ -13,10 +13,7 @@ export interface ReplaceCandidate {
     description: string;
 }
 
-export function buildReplaceCandidates(
-    result: TranslationResult,
-    spaceSeparator = ' '
-): ReplaceCandidate[] {
+export function buildReplaceCandidates(result: TranslationResult): ReplaceCandidate[] {
     const seen = new Set<string>();
     const out: ReplaceCandidate[] = [];
     const push = (raw: string, description: string, exactMatch = false): void => {
@@ -50,6 +47,6 @@ export function buildReplaceCandidates(
     push(formatTranslated(result.text, 'PascalCase', ''), 'PascalCase', true);
     push(formatTranslated(result.text, 'snake_case', ''), 'SNAKE_CASE', true);
     push(formatTranslated(result.text, 'kebab-case', ''), 'kebab-case', true);
-    push(formatTranslated(result.text, 'space', spaceSeparator), 'SPACE', true);
+    push(formatTranslated(result.text, 'space', ' '), 'SPACE', true);
     return out;
 }

@@ -10,7 +10,7 @@
 - **文档翻译（悬浮）**：悬停处有文档注释时，自动翻译整段文档内容并追加显示
 - **翻译对话框**：独立翻译面板，随时输入翻译（相当于参考插件的翻译对话框）
 - **翻译**：选中文本翻译；无选区时自动提取光标处单词（智能驼峰/下划线取词）
-- **选中自动翻译**：选中文本后自动翻译并静默更新到面板（可选开启）
+- **自动取词**：无选区执行翻译/替换命令时自动提取光标处单词（智能驼峰/下划线取词）
 - **翻译并替换（候选选择制）**：翻译后弹出候选列表（主译文、拆分义项、词典释义、camelCase/PascalCase/SNAKE_CASE/kebab-case 等命名风格变体），自主选择后替换；Esc 取消不做任何修改
 - **文档翻译（整篇）**：将整个文档翻译后在新窗口打开；可开启"保留原文"输出逐段原文/译文对照（`translation.document.preserveSource`）；内联技术标签（`{var}`、`<tag>`、`` `code` ``、`%s` 等）自动保护，翻译后原样还原
 - **文本转语音**：Edge 神经网络语音（默认）、OpenAI TTS（可配模型/音色）、Google TTS 三引擎，auto 模式自动回退；支持自动朗读
@@ -65,11 +65,8 @@
 | `translation.engine` | `microsoft` | 默认翻译引擎 |
 | `translation.sourceLanguage` | `auto` | 源语言（auto = 自动检测） |
 | `translation.targetLanguage` | `zh-CN` | 目标语言 |
-| `translation.autoSelectWord` | `true` | 无选区时自动提取光标处单词 |
 | `translation.autoSwapTarget` | `true` | 源语言=目标语言时自动换向（中文↔英文），避免中译中/英译英 |
-| `translation.autoTranslateSelection` | `false` | 选中文本后自动翻译（静默更新面板） |
-| `translation.hover.enabled` | `true` | 悬浮翻译单词（含音标/释义） |
-| `translation.hover.translateDocumentation` | `true` | 悬浮时翻译文档注释内容 |
+| `translation.hover.enabled` | `false` | 鼠标悬浮自动翻译（默认关闭，词典卡片由右键"翻译"触发） |
 | `translation.tts.enabled` | `true` | 启用语音朗读 |
 | `translation.tts.service` | `auto` | 语音服务：auto = Edge 优先、Google 兜底 |
 | `translation.tts.autoPlay` | `false` | 翻译后自动朗读原文 |

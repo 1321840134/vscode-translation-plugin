@@ -1,4 +1,3 @@
-import { langName } from '../languages';
 
 export interface Definition {
     /** 词性，如 noun / interjection，可能为空 */
@@ -62,8 +61,3 @@ export function makeResult(
     return r;
 }
 
-/** 源/目标语言名，供提示语拼接 */
-export function describeDirection(from: string, to: string): string {
-    const src = from === 'auto' ? '自动检测语言' : langName(from);
-    return `${src} → ${langName(to)}`;
-}

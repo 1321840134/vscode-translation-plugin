@@ -173,17 +173,12 @@ test('替换：翻译失败时跳过该选区并提示，不影响其他选区',
     assert.ok(errorMessages.some(m => m.includes('引擎临时错误')));
 });
 
-test('替换：空选区且关闭自动取词时提示', async () => {
+test('替换：光标在非单词处时提示', async () => {
     reset();
-    setConfig({ 'translation.autoSelectWord': false });
-    try {
-        vscodeStub.window.activeTextEditor = makeEditor(['plain text'], [sel(0, 3, 0, 3)]);
-        await replaceCmd();
-        assert.ok(warningMessages.some(m => m.includes('请先选中')));
-        assert.strictEqual(vscodeStub.window.activeTextEditor.edits.length, 0);
-    } finally {
-        setConfig({ 'translation.autoSelectWord': true });
-    }
+    vscodeStub.window.activeTextEditor = makeEditor(['   ===   '], [sel(0, 4, 0, 4)]);
+    await replaceCmd();
+    assert.ok(warningMessages.some(m => m.includes('请先选中')));
+    assert.strictEqual(vscodeStub.window.activeTextEditor.edits.length, 0);
 });
 
 test('替换：edit 不可用时友好报错而非崩溃（加固验证）', async () => {

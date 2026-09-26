@@ -96,10 +96,6 @@ function escapeXml(text: string): string {
         .replace(/'/g, '&apos;');
 }
 
-export function edgeTtsAvailable(): boolean {
-    return true;
-}
-
 /** 合成语音，返回 mp3 字节 */
 export function edgeSpeak(text: string, lang: string): Promise<Buffer> {
     const clipped = text.replace(/\s+/g, ' ').trim().slice(0, 400);

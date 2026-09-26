@@ -74,14 +74,6 @@ export function hoverEnabled(): boolean {
     return cfg().get<boolean>('hover.enabled') ?? false;
 }
 
-export function hoverTranslateDocs(): boolean {
-    return hoverEnabled() && (cfg().get<boolean>('hover.translateDocumentation') ?? true);
-}
-
-export function autoTranslateSelection(): boolean {
-    return cfg().get<boolean>('autoTranslateSelection') ?? false;
-}
-
 /** 源语言与目标语言相同时自动切换目标语言（中文↔英文） */
 export function autoSwapTarget(): boolean {
     return cfg().get<boolean>('autoSwapTarget') ?? true;

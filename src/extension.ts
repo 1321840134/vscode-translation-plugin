@@ -3,8 +3,8 @@ import * as config from './config';
 import { buildReplaceCandidates } from './candidates';
 import { TranslationHoverProvider } from './hover';
 import { AUTO, LANGUAGES, langName } from './languages';
-import { exportWordBook, showPanel, showResultsInPanel, updatePanelResults } from './panel';
-import { ENGINES, TranslationResult, translateLong, translateQuery } from './services';
+import { exportWordBook, showPanel, showResultsInPanel } from './panel';
+import { ENGINES, TranslationResult, clearCache, translateLong, translateQuery } from './services';
 import { initStatusBar, updateStatusBar } from './statusbar';
 import { storage } from './storage';
 import { wordAtPosition } from './word';
@@ -34,7 +34,7 @@ function errMessage(e: unknown): string {
     let wordRange: vscode.Range | undefined;
     if (selText && selText.length <= 40 && !/\s/.test(selText)) {
         wordRange = sel;
-    } else if (!selText && config.autoSelectWord()) {
+    } else if (!selText) {
         const word = wordAtPosition(editor.document, editor.selection.active);
         if (word) {
             wordRange = word.range;
@@ -94,7 +94,7 @@ async function translateAndReplaceCommandSafe(): Promise<void> {
             targets.push({ range: sel, query: t });
         }
     }
-    if (targets.length === 0 && config.autoSelectWord()) {
+    if (targets.length === 0) {
         const word = wordAtPosition(editor.document, editor.selection.active);
         if (word) {
             targets.push({ range: word.range, query: word.query });
@@ -292,49 +292,6 @@ async function wordOfTheDayCommand(): Promise<void> {
     );
 }
 
-/** 选中自动翻译：选区变化防抖后静默翻译并更新面板（不抢焦点） */
-function setupAutoTranslate(context: vscode.ExtensionContext): void {
-    let timer: NodeJS.Timeout | undefined;
-    let lastText = '';
-    context.subscriptions.push(
-        vscode.window.onDidChangeTextEditorSelection(e => {
-            if (!config.autoTranslateSelection()) {
-                return;
-            }
-            const sel = e.selections.find(s => !s.isEmpty);
-            const text = sel ? e.textEditor.document.getText(sel).trim() : '';
-            if (!text || text.length > 800 || text === lastText) {
-                return;
-            }
-            if (timer) {
-                clearTimeout(timer);
-            }
-            timer = setTimeout(() => {
-                lastText = text;
-                void (async () => {
-                    try {
-                        const result = await translateQuery(
-                            text,
-                            config.sourceLanguage(),
-                            config.targetLanguage()
-                        );
-                        storage.pushHistory({
-                            query: result.query,
-                            translation: result.text,
-                            from: result.from,
-                            to: result.to,
-                            engineName: result.engineName
-                        });
-                        updatePanelResults([result]);
-                    } catch {
-                        // 自动翻译失败时静默，避免打扰输入
-                    }
-                })();
-            }, 600);
-        })
-    );
-}
-
 export function activate(context: vscode.ExtensionContext): void {
     storage.init(context);
     initStatusBar(context);
@@ -363,11 +320,12 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerHoverProvider('*', new TranslationHoverProvider())
     );
 
-    setupAutoTranslate(context);
 
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(e => {
             if (e.affectsConfiguration('translation')) {
+                // 引擎配置（镜像/模型/密钥等）变化后立即失效缓存，避免命中旧结果
+                clearCache();
                 updateStatusBar();
             }
         })

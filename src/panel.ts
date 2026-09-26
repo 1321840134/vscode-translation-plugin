@@ -44,7 +44,6 @@ export function toResultView(r: TranslationResult): ResultView {
 interface LastState {
     results: ResultView[];
     query?: string;
-    error?: string;
 }
 
 let lastState: LastState = { results: [] };
@@ -129,7 +128,6 @@ class TranslationPanel {
                         languages: LANGUAGES,
                         from: config.sourceLanguage(),
                         to: config.targetLanguage(),
-                        autoPlay: config.ttsAutoPlay(),
                         tab: pendingShow?.tab,
                         query: lastState.query,
                         results: lastState.results
@@ -227,7 +225,7 @@ class TranslationPanel {
                 return;
             }
             const message = e instanceof Error ? e.message : String(e);
-            lastState = { results: [], query, error: message };
+            lastState = { results: [], query };
             this.post({ type: 'error', message });
         }
     }
@@ -274,16 +272,6 @@ class TranslationPanel {
         // show() 同步创建实例；直接投递结果
         TranslationPanel.instance?.showResults(results, preserveFocus);
     }
-
-    /** 供自动翻译等后台场景使用：面板已打开则静默更新 */
-    static postResultsQuiet(results: TranslationResult[]): void {
-        const inst = TranslationPanel.instance;
-        if (inst) {
-            inst.showResults(results, true);
-            return;
-        }
-        TranslationPanel.showResultsInPanel(results, true);
-    }
 }
 
 function getNonce(): string {
@@ -302,11 +290,6 @@ export function showPanel(opts: { tab?: PanelTab; focusInput?: boolean } = {}): 
 
 export function showResultsInPanel(results: TranslationResult[]): void {
     TranslationPanel.showResultsInPanel(results);
-}
-
-/** 后台更新面板结果（不抢焦点，面板未打开时在侧边打开） */
-export function updatePanelResults(results: TranslationResult[]): void {
-    TranslationPanel.postResultsQuiet(results);
 }
 
 export async function exportWordBook(): Promise<void> {
