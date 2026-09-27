@@ -23,26 +23,6 @@ const BUILTIN_WORDS = [
 
 function errMessage(e: unknown): string {
     return e instanceof Error ? e.message : String(e);
-}
-
-/** 词典 QuickPick 条目：主译文 + 各词性释义（去重），音标放首项 detail */
-function buildDictItems(result: TranslationResult): { label: string; description: string; detail?: string }[] {
-    const items: { label: string; description: string; detail?: string }[] = [];
-    const seen = new Set<string>();
-    const push = (label: string, description: string, detail?: string): void => {
-        if (!label || seen.has(label)) {
-            return;
-        }
-        seen.add(label);
-        items.push({ label, description, detail });
-    };
-    push(result.text, `${result.engineName}`, result.phonetic ? `/${result.phonetic}/` : undefined);
-    for (const def of result.definitions ?? []) {
-        for (const term of def.terms) {
-            push(term, def.pos || '释义');
-        }
-    }
-    return items;
 }async function translateSelectionsCommand(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
@@ -74,24 +54,17 @@ function buildDictItems(result: TranslationResult): { label: string; description
         if (!alreadySelected) {
             editor.selection = new vscode.Selection(wordRange.start, wordRange.end);
         }
-        // 预翻译后以 QuickPick 呈现词典（模态稳定，不受鼠标移动影响；
-        // VSCode 的悬浮提示会随鼠标移动被平台隐藏，不适合承载查询结果）
-        let result;
+        // 预翻译后在翻译面板呈现词典卡片（含音标/分词性释义/朗读/收藏/复制）：
+        // 面板为持久 UI，不受鼠标移动影响（悬浮会被平台隐藏，QuickPick 排版差），
+        // 且与句子翻译路径统一
         try {
-            result = await vscode.window.withProgress(
+            const result = await vscode.window.withProgress(
                 { location: vscode.ProgressLocation.Window, title: `正在查询词典: ${wordQuery.slice(0, 20)}` },
                 () => translateQuery(wordQuery!, AUTO, config.targetLanguage())
             );
+            showResultsInPanel([result]);
         } catch (e) {
             void vscode.window.showErrorMessage(`词典查询失败: ${errMessage(e)}`);
-            return;
-        }
-        const picked = await vscode.window.showQuickPick(buildDictItems(result), {
-            placeHolder: `${wordQuery} — 选择条目复制，Esc 关闭`
-        });
-        if (picked) {
-            await vscode.env.clipboard.writeText(picked.label);
-            void vscode.window.setStatusBarMessage(`已复制: ${picked.label}`, 2500);
         }
         return;
     }
