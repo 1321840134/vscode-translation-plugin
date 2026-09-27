@@ -390,14 +390,12 @@ async function translateDocCommentCommand(): Promise<void> {
             try {
                 const guarded = protectInlineTokens(docText.slice(0, 800));
                 const result = await translateQuery(guarded.text, AUTO, config.targetLanguage());
-                const restored = { ...result, text: guarded.restore(result.text) };
-                storage.pushHistory({
-                    query: docText.slice(0, 100),
-                    translation: restored.text,
-                    from: restored.from,
-                    to: restored.to,
-                    engineName: restored.engineName
-                });
+                // query 使用还原后的原文（避免历史/面板显示占位符），历史由 showResultsInPanel 统一记录
+                const restored = {
+                    ...result,
+                    query: docText.slice(0, 200),
+                    text: guarded.restore(result.text)
+                };
                 showResultsInPanel([restored]);
             } catch (e) {
                 void vscode.window.showErrorMessage(`文档翻译失败: ${errMessage(e)}`);

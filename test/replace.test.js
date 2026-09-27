@@ -241,6 +241,7 @@ test('右键翻译：选中的单个单词 → 面板词典卡片', async () => 
     assert.strictEqual(quickPickCalls.length, 0, '不再使用 QuickPick 呈现');
     assert.ok(panelMessages.some(m => m.type === 'results'), '词典结果应到达面板');
     assert.deepStrictEqual(translateCalls, ['hello'], '命令预翻译');
+    assert.ok(storage.listHistory().some(h => h.query === 'hello'), '词典查询应记录进历史');
     assert.strictEqual(editor.selection, wordSel, '选区已是目标范围时不应重复赋值');
 });
 

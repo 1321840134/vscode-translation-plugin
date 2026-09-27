@@ -268,6 +268,16 @@ class TranslationPanel {
     }
 
     static showResultsInPanel(results: TranslationResult[], preserveFocus = false): void {
+        // 所有命令路径（右键词典/句子翻译/文档注释/每日一词）的结果进面板时统一记录历史
+        for (const r of results) {
+            storage.pushHistory({
+                query: r.query,
+                translation: r.text,
+                from: r.from,
+                to: r.to,
+                engineName: r.engineName
+            });
+        }
         TranslationPanel.show({ tab: 'translate' });
         // show() 同步创建实例；直接投递结果
         TranslationPanel.instance?.showResults(results, preserveFocus);
