@@ -223,7 +223,7 @@ test('右键翻译：光标处单词 → 选中并弹出词典悬浮（不进面
         '应选中整个标识符'
     );
     assert.strictEqual(editor.edits.length, 0, '不产生编辑');
-    assert.strictEqual(translateCalls.length, 0, '词典由悬浮提供器按需翻译，命令本身不请求');
+    assert.deepStrictEqual(translateCalls, ['get user info'], '命令预翻译一次（悬浮命中缓存即时显示）');
 });
 
 test('右键翻译：选中的单个单词 → 词典悬浮', async () => {
@@ -234,7 +234,7 @@ test('右键翻译：选中的单个单词 → 词典悬浮', async () => {
     vscodeStub.window.activeTextEditor = editor;
     await handlers['translation.translate']();
     assert.ok(executedCommands.includes('editor.action.showHover'));
-    assert.strictEqual(translateCalls.length, 0);
+    assert.deepStrictEqual(translateCalls, ['hello'], '命令预翻译一次');
     assert.strictEqual(editor.selection, wordSel, '选区已是目标范围时不应重复赋值（消除悬浮竞态）');
 });
 

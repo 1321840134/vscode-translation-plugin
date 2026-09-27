@@ -32,29 +32,43 @@ function errMessage(e: unknown): string {
     const sel = editor.selection;
     const selText = sel && !sel.isEmpty ? editor.document.getText(sel).trim() : '';
 
-    // 单词级查询（选中单词或光标处取词）→ 选中该词并弹出词典悬浮卡片
+    // 单词级查询（选中单词或光标处取词）→ 词典悬浮卡片
     let wordRange: vscode.Range | undefined;
+    let wordQuery: string | undefined;
     if (selText && selText.length <= 40 && !/\s/.test(selText)) {
         wordRange = sel;
+        wordQuery = selText;
     } else if (!selText) {
         const word = wordAtPosition(editor.document, editor.selection.active);
         if (word) {
             wordRange = word.range;
+            wordQuery = word.query;
         }
     }
-    if (wordRange) {
+    if (wordRange && wordQuery) {
         // 选区已是目标范围时不重复赋值：重复赋值会触发选区变更事件，
-        // 可能在悬浮刚弹出时使其被重新评估/关闭（右键词典"偶尔第一次不弹"的竞态来源）
+        // 可能使悬浮刚弹出就被重新评估/关闭
         const current = editor.selection;
         const alreadySelected =
             !current.isEmpty && typeof current.isEqual === 'function' && current.isEqual(wordRange);
         if (!alreadySelected) {
             editor.selection = new vscode.Selection(wordRange.start, wordRange.end);
         }
-        // 授予悬浮提供器短时访问权（自动悬浮关闭时仅此路径可触发词典）
-        grantHoverAccess();
-        // 等待选区/菜单关闭等事件传播稳定后再触发悬浮
+        // 预翻译：网络请求在命令内完成（带进度提示），悬浮提供器命中缓存即时返回——
+        // 消除悬浮显示路径上的网络等待期（等待期内 VSCode 状态变化会导致结果被丢弃，
+        // 表现为"偶尔不弹"）
+        try {
+            await vscode.window.withProgress(
+                { location: vscode.ProgressLocation.Window, title: `正在查询词典: ${wordQuery.slice(0, 20)}` },
+                () => translateQuery(wordQuery!, AUTO, config.targetLanguage())
+            );
+        } catch (e) {
+            void vscode.window.showErrorMessage(`词典查询失败: ${errMessage(e)}`);
+            return;
+        }
+        // 授权贴近显示时刻发放；等待选区/菜单关闭事件传播稳定后触发悬浮
         await new Promise(r => setTimeout(r, 60));
+        grantHoverAccess();
         await vscode.commands.executeCommand('editor.action.showHover');
         return;
     }
