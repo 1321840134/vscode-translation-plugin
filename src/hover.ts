@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as config from './config';
 import { AUTO, langName } from './languages';
 import { TranslationResult, translateQuery } from './services';
-import { wordAtPosition } from './word';
+import { wordAtPosition, normalizeWordQuery } from './word';
 
 /**
  * 词典悬浮卡片（对应参考插件的词典查询悬浮）：
@@ -40,7 +40,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         let range: vscode.Range;
         const sel = vscode.window.activeTextEditor?.selection;
         if (sel && !sel.isEmpty && typeof sel.contains === 'function' && sel.contains(position)) {
-            query = document.getText(sel).trim();
+            query = normalizeWordQuery(document.getText(sel).trim());
             range = sel;
             if (!query || query.length > 40) {
                 return undefined; // 过长选区不适合词典卡片

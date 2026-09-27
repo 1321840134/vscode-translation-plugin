@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 require('./helpers/stub.js').install();
 const { wordAtPosition } = require('../out/word.js');
+const { normalizeWordQuery } = require('../out/word.js');
 const { vscodeStub } = require('./helpers/stub.js');
 
 function doc(lines) {
@@ -57,4 +58,13 @@ test('wordAtPosition：行首行尾不越界', () => {
         const w = wordAtPosition(doc([line]), { line: 0, character: i });
         assert.strictEqual(w.query, 'hello', `位置 ${i} 应命中 hello`);
     }
+});
+
+test('normalizeWordQuery：驼峰/下划线拆分与小写（划选路径共用）', () => {
+    assert.strictEqual(normalizeWordQuery('getUserInfo'), 'get user info');
+    assert.strictEqual(normalizeWordQuery('HTTPServer'), 'http server'); // 连续大写结尾拆分
+    assert.strictEqual(normalizeWordQuery('my_var_name'), 'my var name');
+    assert.strictEqual(normalizeWordQuery('hello'), 'hello');
+    assert.strictEqual(normalizeWordQuery('获取用户'), '获取用户'); // 中文不受影响
+    assert.strictEqual(normalizeWordQuery('userID42'), 'user id42');
 });

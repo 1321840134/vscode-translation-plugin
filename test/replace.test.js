@@ -238,6 +238,17 @@ test('右键翻译：选中的单个单词 → 词典悬浮', async () => {
     assert.strictEqual(editor.selection, wordSel, '选区已是目标范围时不应重复赋值（消除悬浮竞态）');
 });
 
+test('右键翻译：选中的驼峰标识符 → 拆分后查询词典', async () => {
+    reset();
+    const line = 'const name = getUserInfo();';
+    const w0 = line.indexOf('getUserInfo');
+    const editor = makeEditor([line], [sel(0, w0, 0, w0 + 'getUserInfo'.length)]);
+    vscodeStub.window.activeTextEditor = editor;
+    await handlers['translation.translate']();
+    assert.ok(executedCommands.includes('editor.action.showHover'));
+    assert.deepStrictEqual(translateCalls, ['get user info'], '驼峰标识符应拆分后查询');
+});
+
 test('右键翻译：选区为句子 → 面板翻译', async () => {
     reset();
     const editor = makeEditor(['hello world and more'], [sel(0, 0, 0, 20)]);

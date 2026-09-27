@@ -9,7 +9,7 @@ import { ENGINES, TranslationResult, clearCache, translateLong, translateQuery }
 import { disposeHttpAgents } from './net';
 import { initStatusBar, updateStatusBar } from './statusbar';
 import { storage } from './storage';
-import { wordAtPosition } from './word';
+import { wordAtPosition, normalizeWordQuery } from './word';
 
 /** 每日一词的内置词库（用户单词本非空时优先使用单词本） */
 const BUILTIN_WORDS = [
@@ -33,11 +33,12 @@ function errMessage(e: unknown): string {
     const selText = sel && !sel.isEmpty ? editor.document.getText(sel).trim() : '';
 
     // 单词级查询（选中单词或光标处取词）→ 词典悬浮卡片
+    // 划选文本同样经过智能拆分归一化（驼峰整词直接查引擎效果差）
     let wordRange: vscode.Range | undefined;
     let wordQuery: string | undefined;
     if (selText && selText.length <= 40 && !/\s/.test(selText)) {
         wordRange = sel;
-        wordQuery = selText;
+        wordQuery = normalizeWordQuery(selText);
     } else if (!selText) {
         const word = wordAtPosition(editor.document, editor.selection.active);
         if (word) {
@@ -118,7 +119,9 @@ async function translateAndReplaceCommandSafe(): Promise<void> {
     for (const sel of editor.selections) {
         const t = editor.document.getText(sel).trim();
         if (t) {
-            targets.push({ range: sel, query: t });
+            // 单词级选区做智能拆分归一化（驼峰整词直接查引擎效果差）；句子原样
+            const query = /\s/.test(t) ? t : normalizeWordQuery(t);
+            targets.push({ range: sel, query });
         }
     }
     if (targets.length === 0) {
