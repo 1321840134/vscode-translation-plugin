@@ -211,19 +211,21 @@ test('替换：多行选区按整段翻译替换', async () => {
     assert.strictEqual(editor.edits[0].text, '译(line one\nline two)');
 });
 
-test('右键翻译：光标处单词 → 选中并弹出词典悬浮（不进面板）', async () => {
+test('右键翻译：光标处单词 → 选中并以 QuickPick 呈现词典（不进面板）', async () => {
     reset();
     const editor = makeEditor(['getUserInfo();'], [sel(0, 6, 0, 6)]);
     vscodeStub.window.activeTextEditor = editor;
     await handlers['translation.translate']();
-    assert.ok(executedCommands.includes('editor.action.showHover'), '应触发词典悬浮');
+    assert.ok(!executedCommands.includes('editor.action.showHover'), '不再使用悬浮呈现');
+    assert.strictEqual(quickPickCalls.length, 1, '应以 QuickPick 呈现词典');
+    assert.ok(quickPickCalls[0].length >= 1, '词典至少含主译文条目');
     assert.deepStrictEqual(
         { s: editor.selection.start.character, e: editor.selection.end.character },
         { s: 0, e: 11 },
         '应选中整个标识符'
     );
     assert.strictEqual(editor.edits.length, 0, '不产生编辑');
-    assert.deepStrictEqual(translateCalls, ['get user info'], '命令预翻译一次（悬浮命中缓存即时显示）');
+    assert.deepStrictEqual(translateCalls, ['get user info'], '命令预翻译');
 });
 
 test('右键翻译：选中的单个单词 → 词典悬浮', async () => {
@@ -233,8 +235,9 @@ test('右键翻译：选中的单个单词 → 词典悬浮', async () => {
     const editor = makeEditor([line], [wordSel]);
     vscodeStub.window.activeTextEditor = editor;
     await handlers['translation.translate']();
-    assert.ok(executedCommands.includes('editor.action.showHover'));
-    assert.deepStrictEqual(translateCalls, ['hello'], '命令预翻译一次');
+    assert.ok(!executedCommands.includes('editor.action.showHover'));
+    assert.strictEqual(quickPickCalls.length, 1, '应以 QuickPick 呈现词典');
+    assert.deepStrictEqual(translateCalls, ['hello'], '命令预翻译');
     assert.strictEqual(editor.selection, wordSel, '选区已是目标范围时不应重复赋值（消除悬浮竞态）');
 });
 
@@ -245,7 +248,7 @@ test('右键翻译：选中的驼峰标识符 → 拆分后查询词典', async 
     const editor = makeEditor([line], [sel(0, w0, 0, w0 + 'getUserInfo'.length)]);
     vscodeStub.window.activeTextEditor = editor;
     await handlers['translation.translate']();
-    assert.ok(executedCommands.includes('editor.action.showHover'));
+    assert.strictEqual(quickPickCalls.length, 1, '应以 QuickPick 呈现词典');
     assert.deepStrictEqual(translateCalls, ['get user info'], '驼峰标识符应拆分后查询');
 });
 

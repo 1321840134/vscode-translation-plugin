@@ -56,7 +56,7 @@ services.translateQuery = async (text, from, to) => {
     };
 };
 
-const { TranslationHoverProvider, grantHoverAccess } = require('../out/hover.js');
+const { TranslationHoverProvider } = require('../out/hover.js');
 
 function fakeDoc() {
     return {
@@ -160,7 +160,7 @@ test('hover：有选区时以划选文本为准（中文整句场景防扩展）
     }
 });
 
-test('hover：默认关闭且无授权时不触发（用户选中+悬停场景）', async () => {
+test('hover：默认关闭时不触发（用户选中+悬停场景）', async () => {
     reset();
     setConfig({ 'translation.hover.enabled': false });
     vscodeStub.window.activeTextEditor = {
@@ -176,28 +176,3 @@ test('hover：默认关闭且无授权时不触发（用户选中+悬停场景�
     }
 });
 
-test('hover：右键命令授权后仍提供词典', async () => {
-    reset();
-    setConfig({ 'translation.hover.enabled': false });
-    try {
-        grantHoverAccess();
-        const provider = new TranslationHoverProvider();
-        const hover = await provider.provideHover(fakeDoc(), pos(22), token());
-        assert.ok(hover, '授权窗口内应返回词典');
-        assert.ok(hover.contents.value.includes('user info'));
-    } finally {
-        setConfig({ 'translation.hover.enabled': true });
-    }
-});
-
-test('hover：授权过期后不再触发', async () => {
-    reset();
-    setConfig({ 'translation.hover.enabled': false });
-    try {
-        grantHoverAccess(-1000); // 已过期的授权
-        const provider = new TranslationHoverProvider();
-        assert.strictEqual(await provider.provideHover(fakeDoc(), pos(22), token()), undefined);
-    } finally {
-        setConfig({ 'translation.hover.enabled': true });
-    }
-});

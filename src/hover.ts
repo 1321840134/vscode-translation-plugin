@@ -5,25 +5,11 @@ import { TranslationResult, translateQuery } from './services';
 import { wordAtPosition, normalizeWordQuery } from './word';
 
 /**
- * 词典悬浮卡片（对应参考插件的词典查询悬浮）：
+ * 词典悬浮（仅当用户开启 translation.hover.enabled 的鼠标自动悬浮时生效）：
  * 只做单词级翻译（含音标/释义），单次请求即出结果；
- * 文档注释翻译是独立命令（translation.translateDocComment），不在此串行执行。
- *
- * 自动悬浮关闭时的触发控制：右键"翻译"命令通过 grantHoverAccess()
- * 授予短时授权（精确到命令触发时刻），普通"选中文本 + 鼠标悬停"不触发——
- * 否则用户日常选中代码时鼠标划过即翻译，等于关不掉。
+ * 右键"翻译"命令的词典查询走 QuickPick 呈现（悬浮会随鼠标移动被平台隐藏，不适合承载查询结果）；
+ * 文档注释翻译是独立命令（translation.translateDocComment）。
  */
-
-let grantedUntil = 0;
-
-/** 授予词典悬浮访问权（右键"翻译"命令调用，短时有效） */
-export function grantHoverAccess(ms = 2500): void {
-    grantedUntil = Date.now() + ms;
-}
-
-export function isHoverAccessActive(): boolean {
-    return Date.now() < grantedUntil;
-}
 
 export class TranslationHoverProvider implements vscode.HoverProvider {
     async provideHover(
@@ -31,7 +17,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         position: vscode.Position,
         token: vscode.CancellationToken
     ): Promise<vscode.Hover | undefined> {
-        if (!config.hoverEnabled() && !isHoverAccessActive()) {
+        if (!config.hoverEnabled()) {
             return undefined;
         }
         // 以划选文本为准（右键"翻译"划选单词时使用选区本身）：

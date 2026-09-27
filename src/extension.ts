@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as config from './config';
 import { buildReplaceCandidates } from './candidates';
-import { TranslationHoverProvider, extractPlainText, grantHoverAccess } from './hover';
+import { TranslationHoverProvider, extractPlainText } from './hover';
 import { AUTO, LANGUAGES, langName } from './languages';
 import { exportWordBook, showPanel, showResultsInPanel } from './panel';
 import { protectInlineTokens } from './protect';
@@ -23,6 +23,26 @@ const BUILTIN_WORDS = [
 
 function errMessage(e: unknown): string {
     return e instanceof Error ? e.message : String(e);
+}
+
+/** 词典 QuickPick 条目：主译文 + 各词性释义（去重），音标放首项 detail */
+function buildDictItems(result: TranslationResult): { label: string; description: string; detail?: string }[] {
+    const items: { label: string; description: string; detail?: string }[] = [];
+    const seen = new Set<string>();
+    const push = (label: string, description: string, detail?: string): void => {
+        if (!label || seen.has(label)) {
+            return;
+        }
+        seen.add(label);
+        items.push({ label, description, detail });
+    };
+    push(result.text, `${result.engineName}`, result.phonetic ? `/${result.phonetic}/` : undefined);
+    for (const def of result.definitions ?? []) {
+        for (const term of def.terms) {
+            push(term, def.pos || '释义');
+        }
+    }
+    return items;
 }async function translateSelectionsCommand(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
@@ -32,7 +52,7 @@ function errMessage(e: unknown): string {
     const sel = editor.selection;
     const selText = sel && !sel.isEmpty ? editor.document.getText(sel).trim() : '';
 
-    // 单词级查询（选中单词或光标处取词）→ 词典悬浮卡片
+    // 单词级查询（选中单词或光标处取词）→ 词典 QuickPick
     // 划选文本同样经过智能拆分归一化（驼峰整词直接查引擎效果差）
     let wordRange: vscode.Range | undefined;
     let wordQuery: string | undefined;
@@ -47,19 +67,18 @@ function errMessage(e: unknown): string {
         }
     }
     if (wordRange && wordQuery) {
-        // 选区已是目标范围时不重复赋值：重复赋值会触发选区变更事件，
-        // 可能使悬浮刚弹出就被重新评估/关闭
+        // 选区已是目标范围时不重复赋值：重复赋值会触发选区变更事件
         const current = editor.selection;
         const alreadySelected =
             !current.isEmpty && typeof current.isEqual === 'function' && current.isEqual(wordRange);
         if (!alreadySelected) {
             editor.selection = new vscode.Selection(wordRange.start, wordRange.end);
         }
-        // 预翻译：网络请求在命令内完成（带进度提示），悬浮提供器命中缓存即时返回——
-        // 消除悬浮显示路径上的网络等待期（等待期内 VSCode 状态变化会导致结果被丢弃，
-        // 表现为"偶尔不弹"）
+        // 预翻译后以 QuickPick 呈现词典（模态稳定，不受鼠标移动影响；
+        // VSCode 的悬浮提示会随鼠标移动被平台隐藏，不适合承载查询结果）
+        let result;
         try {
-            await vscode.window.withProgress(
+            result = await vscode.window.withProgress(
                 { location: vscode.ProgressLocation.Window, title: `正在查询词典: ${wordQuery.slice(0, 20)}` },
                 () => translateQuery(wordQuery!, AUTO, config.targetLanguage())
             );
@@ -67,10 +86,13 @@ function errMessage(e: unknown): string {
             void vscode.window.showErrorMessage(`词典查询失败: ${errMessage(e)}`);
             return;
         }
-        // 授权贴近显示时刻发放；等待选区/菜单关闭事件传播稳定后触发悬浮
-        await new Promise(r => setTimeout(r, 60));
-        grantHoverAccess();
-        await vscode.commands.executeCommand('editor.action.showHover');
+        const picked = await vscode.window.showQuickPick(buildDictItems(result), {
+            placeHolder: `${wordQuery} — 选择条目复制，Esc 关闭`
+        });
+        if (picked) {
+            await vscode.env.clipboard.writeText(picked.label);
+            void vscode.window.setStatusBarMessage(`已复制: ${picked.label}`, 2500);
+        }
         return;
     }
 

@@ -84,6 +84,10 @@ const vscodeStub = {
         file: f => ({ fsPath: f }),
         parse: u => ({ toString: () => u })
     },
+    env: {
+        clipboard: { writeText: async () => undefined },
+        openExternal: async () => undefined
+    },
     ViewColumn: { Active: 1, Beside: 2, One: 1, Two: 2 },
     StatusBarAlignment: { Left: 1, Right: 2 },
     ConfigurationTarget: { Global: 1 },
