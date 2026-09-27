@@ -56,7 +56,7 @@ services.translateQuery = async (text, from, to) => {
     };
 };
 
-const { TranslationHoverProvider } = require('../out/hover.js');
+const { TranslationHoverProvider, grantHoverAccess } = require('../out/hover.js');
 
 function fakeDoc() {
     return {
@@ -130,47 +130,44 @@ test('hover：非单词位置返回 undefined', async () => {
     assert.strictEqual(translateCalls.length, 0);
 });
 
-test('hover：默认关闭时鼠标悬浮不自动触发（无选区）', async () => {
-    reset();
-    setConfig({ 'translation.hover.enabled': false });
-    vscodeStub.window.activeTextEditor = undefined;
-    try {
-        const provider = new TranslationHoverProvider();
-        assert.strictEqual(await provider.provideHover(fakeDoc(), pos(22), token()), undefined);
-        assert.strictEqual(translateCalls.length, 0);
-    } finally {
-        setConfig({ 'translation.hover.enabled': true });
-    }
-});
-
-test('hover：关闭状态下选中文本（右键翻译命令触发）仍提供词典', async () => {
+test('hover：默认关闭且无授权时不触发（用户选中+悬停场景）', async () => {
     reset();
     setConfig({ 'translation.hover.enabled': false });
     vscodeStub.window.activeTextEditor = {
-        selection: { isEmpty: false, contains: p => p.character >= 18 && p.character <= 28 }
+        selection: { isEmpty: false, contains: () => true } // 即使选区覆盖且悬停其上
     };
     try {
         const provider = new TranslationHoverProvider();
+        assert.strictEqual(await provider.provideHover(fakeDoc(), pos(22), token()), undefined);
+        assert.strictEqual(translateCalls.length, 0, '不应发起翻译请求');
+    } finally {
+        setConfig({ 'translation.hover.enabled': true });
+        vscodeStub.window.activeTextEditor = undefined;
+    }
+});
+
+test('hover：右键命令授权后仍提供词典', async () => {
+    reset();
+    setConfig({ 'translation.hover.enabled': false });
+    try {
+        grantHoverAccess();
+        const provider = new TranslationHoverProvider();
         const hover = await provider.provideHover(fakeDoc(), pos(22), token());
-        assert.ok(hover, '选区内的位置应返回词典');
+        assert.ok(hover, '授权窗口内应返回词典');
         assert.ok(hover.contents.value.includes('user info'));
     } finally {
         setConfig({ 'translation.hover.enabled': true });
-        vscodeStub.window.activeTextEditor = undefined;
     }
 });
 
-test('hover：关闭状态下选区外的位置不触发', async () => {
+test('hover：授权过期后不再触发', async () => {
     reset();
     setConfig({ 'translation.hover.enabled': false });
-    vscodeStub.window.activeTextEditor = {
-        selection: { isEmpty: false, contains: () => false }
-    };
     try {
+        grantHoverAccess(-1000); // 已过期的授权
         const provider = new TranslationHoverProvider();
         assert.strictEqual(await provider.provideHover(fakeDoc(), pos(22), token()), undefined);
     } finally {
         setConfig({ 'translation.hover.enabled': true });
-        vscodeStub.window.activeTextEditor = undefined;
     }
 });

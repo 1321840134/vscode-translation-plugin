@@ -8,7 +8,22 @@ import { wordAtPosition } from './word';
  * 词典悬浮卡片（对应参考插件的词典查询悬浮）：
  * 只做单词级翻译（含音标/释义），单次请求即出结果；
  * 文档注释翻译是独立命令（translation.translateDocComment），不在此串行执行。
+ *
+ * 自动悬浮关闭时的触发控制：右键"翻译"命令通过 grantHoverAccess()
+ * 授予短时授权（精确到命令触发时刻），普通"选中文本 + 鼠标悬停"不触发——
+ * 否则用户日常选中代码时鼠标划过即翻译，等于关不掉。
  */
+
+let grantedUntil = 0;
+
+/** 授予词典悬浮访问权（右键"翻译"命令调用，短时有效） */
+export function grantHoverAccess(ms = 2500): void {
+    grantedUntil = Date.now() + ms;
+}
+
+export function isHoverAccessActive(): boolean {
+    return Date.now() < grantedUntil;
+}
 
 export class TranslationHoverProvider implements vscode.HoverProvider {
     async provideHover(
@@ -16,12 +31,8 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         position: vscode.Position,
         token: vscode.CancellationToken
     ): Promise<vscode.Hover | undefined> {
-        if (!config.hoverEnabled()) {
-            // 自动悬浮已关闭：仅当选中了文本（右键"翻译"命令触发的词典查询）时工作
-            const sel = vscode.window.activeTextEditor?.selection;
-            if (!sel || sel.isEmpty || !sel.contains(position)) {
-                return undefined;
-            }
+        if (!config.hoverEnabled() && !isHoverAccessActive()) {
+            return undefined;
         }
         const word = wordAtPosition(document, position);
         if (!word) {
@@ -32,8 +43,19 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         let wordResult: TranslationResult;
         try {
             wordResult = await translateQuery(word.query, AUTO, to);
-        } catch {
-            return undefined;
+        } catch (e) {
+            // 不静默：给出错误提示卡片，用户可感知失败并重试
+            if (token.isCancellationRequested) {
+                return undefined;
+            }
+            const errMd = new vscode.MarkdownString();
+            errMd.supportThemeIcons = true;
+            errMd.isTrusted = false;
+            errMd.appendMarkdown('$(translations) **');
+            errMd.appendText(word.query);
+            errMd.appendMarkdown('**\n\n$(error) ');
+            errMd.appendText(`翻译失败: ${e instanceof Error ? e.message : String(e)}`);
+            return new vscode.Hover(errMd, word.range);
         }
         if (token.isCancellationRequested) {
             return undefined;

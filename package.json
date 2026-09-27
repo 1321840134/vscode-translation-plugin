@@ -2,7 +2,7 @@
   "name": "vscode-translation-plugin",
   "displayName": "Translation",
   "description": "强大的翻译插件：多引擎翻译(微软/Google/DeepL/OpenAI/有道/百度/阿里)、翻译替换、翻译文档、单词本、翻译历史、多引擎语音朗读、自动取词",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "publisher": "vscode-translation-plugin",
   "license": "MIT",
   "icon": "media/icon.png",

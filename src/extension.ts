@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as config from './config';
 import { buildReplaceCandidates } from './candidates';
-import { TranslationHoverProvider, extractPlainText } from './hover';
+import { TranslationHoverProvider, extractPlainText, grantHoverAccess } from './hover';
 import { AUTO, LANGUAGES, langName } from './languages';
 import { exportWordBook, showPanel, showResultsInPanel } from './panel';
 import { protectInlineTokens } from './protect';
@@ -43,8 +43,19 @@ function errMessage(e: unknown): string {
         }
     }
     if (wordRange) {
-        editor.selection = new vscode.Selection(wordRange.start, wordRange.end);
-        void vscode.commands.executeCommand('editor.action.showHover');
+        // 选区已是目标范围时不重复赋值：重复赋值会触发选区变更事件，
+        // 可能在悬浮刚弹出时使其被重新评估/关闭（右键词典"偶尔第一次不弹"的竞态来源）
+        const current = editor.selection;
+        const alreadySelected =
+            !current.isEmpty && typeof current.isEqual === 'function' && current.isEqual(wordRange);
+        if (!alreadySelected) {
+            editor.selection = new vscode.Selection(wordRange.start, wordRange.end);
+        }
+        // 授予悬浮提供器短时访问权（自动悬浮关闭时仅此路径可触发词典）
+        grantHoverAccess();
+        // 等待选区/菜单关闭等事件传播稳定后再触发悬浮
+        await new Promise(r => setTimeout(r, 60));
+        await vscode.commands.executeCommand('editor.action.showHover');
         return;
     }
 

@@ -38,7 +38,11 @@ function makeEditor(lines, selections) {
 function sel(anchorLine, anchorChar, activeLine, activeChar) {
     const start = { line: Math.min(anchorLine, activeLine), character: anchorLine === activeLine ? Math.min(anchorChar, activeChar) : (anchorLine < activeLine ? anchorChar : activeChar) };
     const end = { line: Math.max(anchorLine, activeLine), character: anchorLine === activeLine ? Math.max(anchorChar, activeChar) : (anchorLine < activeLine ? activeChar : anchorChar) };
-    return { anchor: { line: anchorLine, character: anchorChar }, active: { line: activeLine, character: activeChar }, start, end };
+    const s = { anchor: { line: anchorLine, character: anchorChar }, active: { line: activeLine, character: activeChar }, start, end, isEmpty: anchorLine === activeLine && anchorChar === activeChar };
+    s.isEqual = other =>
+        !!other && other.start.line === start.line && other.start.character === start.character &&
+        other.end.line === end.line && other.end.character === end.character;
+    return s;
 }
 
 // ---- stub 增强：记录命令处理器 / withProgress 直通 / selection 事件 ----
@@ -225,11 +229,13 @@ test('右键翻译：光标处单词 → 选中并弹出词典悬浮（不进面
 test('右键翻译：选中的单个单词 → 词典悬浮', async () => {
     reset();
     const line = 'const greeting = "hello";';
-    const editor = makeEditor([line], [sel(0, line.indexOf('"hello"') + 1, 0, line.indexOf('"hello"') + 6)]);
+    const wordSel = sel(0, line.indexOf('"hello"') + 1, 0, line.indexOf('"hello"') + 6);
+    const editor = makeEditor([line], [wordSel]);
     vscodeStub.window.activeTextEditor = editor;
     await handlers['translation.translate']();
     assert.ok(executedCommands.includes('editor.action.showHover'));
     assert.strictEqual(translateCalls.length, 0);
+    assert.strictEqual(editor.selection, wordSel, '选区已是目标范围时不应重复赋值（消除悬浮竞态）');
 });
 
 test('右键翻译：选区为句子 → 面板翻译', async () => {
