@@ -34,15 +34,30 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         if (!config.hoverEnabled() && !isHoverAccessActive()) {
             return undefined;
         }
-        const word = wordAtPosition(document, position);
-        if (!word) {
-            return undefined;
+        // 以划选文本为准（右键"翻译"划选单词时使用选区本身）：
+        // 不能依赖 wordAtPosition 重新取词——中文无空格分隔，取词会扩展为整个连续汉字段
+        let query: string;
+        let range: vscode.Range;
+        const sel = vscode.window.activeTextEditor?.selection;
+        if (sel && !sel.isEmpty && typeof sel.contains === 'function' && sel.contains(position)) {
+            query = document.getText(sel).trim();
+            range = sel;
+            if (!query || query.length > 40) {
+                return undefined; // 过长选区不适合词典卡片
+            }
+        } else {
+            const word = wordAtPosition(document, position);
+            if (!word) {
+                return undefined;
+            }
+            query = word.query;
+            range = word.range;
         }
         const to = config.targetLanguage();
 
         let wordResult: TranslationResult;
         try {
-            wordResult = await translateQuery(word.query, AUTO, to);
+            wordResult = await translateQuery(query, AUTO, to);
         } catch (e) {
             // 不静默：给出错误提示卡片，用户可感知失败并重试
             if (token.isCancellationRequested) {
@@ -52,10 +67,10 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
             errMd.supportThemeIcons = true;
             errMd.isTrusted = false;
             errMd.appendMarkdown('$(translations) **');
-            errMd.appendText(word.query);
+            errMd.appendText(query);
             errMd.appendMarkdown('**\n\n$(error) ');
             errMd.appendText(`翻译失败: ${e instanceof Error ? e.message : String(e)}`);
-            return new vscode.Hover(errMd, word.range);
+            return new vscode.Hover(errMd, range);
         }
         if (token.isCancellationRequested) {
             return undefined;
@@ -65,7 +80,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         md.supportThemeIcons = true;
         md.isTrusted = false;
         md.appendMarkdown('$(translations) **');
-        md.appendText(word.query);
+        md.appendText(query);
         md.appendMarkdown('**');
         if (wordResult.phonetic) {
             md.appendMarkdown('  ');
@@ -82,7 +97,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         md.appendMarkdown(
             `\n\n---\n*${wordResult.engineName} · ${langName(wordResult.from)} → ${langName(wordResult.to)}*`
         );
-        return new vscode.Hover(md, word.range);
+        return new vscode.Hover(md, range);
     }
 }
 

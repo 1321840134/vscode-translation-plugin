@@ -130,6 +130,36 @@ test('hover：非单词位置返回 undefined', async () => {
     assert.strictEqual(translateCalls.length, 0);
 });
 
+test('hover：有选区时以划选文本为准（中文整句场景防扩展）', async () => {
+    reset();
+    setConfig({ 'translation.hover.enabled': true });
+    vscodeStub.window.activeTextEditor = {
+        // 划选了中文句中的 "获取" 两字（位于 [8,10)）
+        selection: {
+            isEmpty: false,
+            start: { line: 0, character: 8 },
+            end: { line: 0, character: 10 },
+            contains: p => p.character >= 8 && p.character < 10
+        }
+    };
+    try {
+        const provider = new TranslationHoverProvider();
+        const text = '// 此方法用于获取指定用户的详细信息';
+        const doc = {
+            uri: 'x',
+            lineAt: () => ({ text }),
+            getText: sel => text.slice(sel.start.character, sel.end.character)
+        };
+        const hover = await provider.provideHover(doc, pos(9), token());
+        assert.ok(hover, '应返回词典');
+        // 翻译的必须是划选的 "获取"，而不是整句
+        assert.deepStrictEqual(translateCalls.map(c => c.text), ['获取']);
+        assert.ok(hover.contents.value.includes('获取'));
+    } finally {
+        vscodeStub.window.activeTextEditor = undefined;
+    }
+});
+
 test('hover：默认关闭且无授权时不触发（用户选中+悬停场景）', async () => {
     reset();
     setConfig({ 'translation.hover.enabled': false });

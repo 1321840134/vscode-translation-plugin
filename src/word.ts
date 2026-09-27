@@ -33,6 +33,12 @@ export function wordAtPosition(document: vscode.TextDocument, position: vscode.P
     if (!/\p{L}/u.test(raw)) {
         return undefined;
     }
+    // 中文无空格分隔，连续汉字段会整体取词：超过 12 字视为句子而非单词，
+    // 不作为词典查询（句子翻译由面板路径处理）
+    const han = raw.match(/[\u3400-\u9fff\uf900-\ufaff]/g)?.length ?? 0;
+    if (han > 12) {
+        return undefined;
+    }
     // 词典查询惯例：英文统一小写（中文等不受影响）
     const query = raw
         .replace(/[_']/g, ' ')

@@ -31,6 +31,12 @@ test('wordAtPosition：中文取词', () => {
     assert.strictEqual(w.query, '获取用户信息');
 });
 
+test('wordAtPosition：超长中文段不作为单词（词典用整句无意义）', () => {
+    const long = '// 此方法用于从远程服务器上获取指定用户的详细档案信息并缓存';
+    const w = wordAtPosition(doc([long]), { line: 0, character: 6 });
+    assert.strictEqual(w, undefined);
+});
+
 test('wordAtPosition：中英混合词', () => {
     const w = wordAtPosition(doc(['用户userID']), { line: 0, character: 4 });
     assert.strictEqual(w.raw, '用户userID');
