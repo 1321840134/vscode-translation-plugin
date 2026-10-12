@@ -23,7 +23,7 @@
 - **翻译历史**：自动记录，支持搜索（含正则）、点击重译、删除、清空
 - **切换引擎**：快捷键/状态栏快速切换翻译引擎，同一入口还可切换语音朗读（TTS）引擎
 - **每日一词**：随机回顾单词本中的单词（为空时使用内置词库）
-- **词典结果**：单词查询时显示音标与分词性释义，每条释义附带同义词组（Google 免费；微软配置 Azure 密钥后走词典接口增强，与参考插件一致）
+- **词典结果**：单词查询时显示音标与分词性释义，每条释义附带同义词组（微软走 Bing 免密钥词典接口、Google 免费接口自带词典数据，均无需配置）
 
 ## 快捷键
 
@@ -61,7 +61,7 @@
 
 | 引擎 | 设置项 |
 | --- | --- |
-| 微软 | `translation.microsoft.subscriptionKey`、`translation.microsoft.region`（可选，不填则使用 Edge 免费端点；配置后单词查询自动走 Azure 词典接口，呈现分词性释义+同义词组） |
+| 微软 | `translation.microsoft.subscriptionKey`、`translation.microsoft.region`（可选，不填则使用 Edge 免费端点；两种模式均支持词典查询：免密钥走 Bing 词典接口，配置密钥后走 Azure 词典接口） |
 | Google | `translation.google.host`（默认官方域名，可改为镜像域名） |
 | DeepL | `translation.deepl.authKey`（免费版密钥以 `:fx` 结尾，自动识别） |
 | OpenAI | `translation.openai.apiKey`、`translation.openai.model`、`translation.openai.apiBase`（可配置兼容接口）；高级配置：`openai.systemPrompt`（自定义提示词，支持 `{sourceLang}/{targetLang}` 占位符）、`openai.temperature` |

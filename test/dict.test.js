@@ -153,3 +153,32 @@ test('webview：词典释义渲染支持逐条释义 + 同义词子行', () => {
     assert.ok(html.includes('.def-syn'), '应有同义词子行样式');
     assert.ok(html.includes('.def-list'), '应有释义列表样式');
 });
+
+// ---- Bing 网页版词典鉴权解析（免密钥，对齐参考插件 BingTranslator） ----
+
+const BING_PAGE = [
+    '<!DOCTYPE html><html><head><title>Bing 翻译器</title>',
+    '<script>sj_evt.bind(...); IG: "DEADC0DE"; _G=...;</script>',
+    '<body data-iid="translator.5023">',
+    '<script>var params_AbusePreventionHelper = [ 123456, "AbCdEfToken==", 600000 ];</script>',
+    '</body></html>'
+].join('\n');
+
+test('parseBingAuth：从翻译页 HTML 解析 IG/IID/token/key/ttl', () => {
+    const { parseBingAuth } = require('../out/bing.js');
+    const auth = parseBingAuth(BING_PAGE);
+    assert.strictEqual(auth.ig, 'DEADC0DE');
+    assert.strictEqual(auth.iid, 'translator.5023');
+    assert.strictEqual(auth.token, 'AbCdEfToken==');
+    assert.strictEqual(auth.key, '123456');
+    assert.strictEqual(auth.ttlMs, 600000);
+});
+
+test('parseBingAuth：缺少任一鉴权要素时抛错', () => {
+    const { parseBingAuth } = require('../out/bing.js');
+    assert.throws(() => parseBingAuth('<html>no tokens here</html>'));
+    // 缺 data-iid
+    assert.throws(() => parseBingAuth('<script>IG: "AABBCC"; params_AbusePreventionHelper = [1, "t", 1000];</script>'));
+    // 缺 AbusePreventionHelper
+    assert.throws(() => parseBingAuth('<script>IG: "AABBCC";</script><div data-iid="x">'));
+});

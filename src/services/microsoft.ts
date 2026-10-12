@@ -1,4 +1,5 @@
 import * as config from '../config';
+import { bingLookupDictionary } from '../bing';
 import { request } from '../net';
 import { Definition, EngineError, TranslationEngine, TranslationResult, makeResult } from './types';
 
@@ -126,7 +127,23 @@ export const microsoftEngine: TranslationEngine = {
             `${EDGE_TRANSLATE_URL}?from=${encodeURIComponent(fromMs)}` +
             `&to=${encodeURIComponent(toMs)}&isEnterpriseClient=false`;
         const raw = await request(url, requestOptions);
-        return parseTranslateResponse(raw, text, from, to);
+        const result = parseTranslateResponse(raw, text, from, to);
+        // 免密钥词典增强（对齐参考插件 BingTranslator）：单词查询用 Bing 网页版
+        // 词典接口 tlookupv3 获取释义+同义词，失败静默降级为纯翻译
+        if (isWordQuery(text)) {
+            const detectedMs = TO_MS[result.from] ?? result.from;
+            const defs = await bingLookupDictionary(
+                text,
+                result.text,
+                detectedMs,
+                toMs,
+                signal
+            ).catch(() => undefined);
+            if (defs && defs.length > 0) {
+                result.definitions = defs;
+            }
+        }
+        return result;
     }
 };
 

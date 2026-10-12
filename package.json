@@ -2,7 +2,7 @@
   "name": "vscode-translation-plugin",
   "displayName": "Translation",
   "description": "强大的翻译插件：多引擎翻译(微软/Google/DeepL/OpenAI/有道/百度/阿里)、翻译替换、翻译文档、单词本、翻译历史、多引擎语音朗读、自动取词",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "publisher": "vscode-translation-plugin",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -416,7 +416,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "test": "tsc -p ./ && node --test test/*.test.js",
-    "test:live": "node scripts/smoke-autoswap.js && node scripts/smoke-microsoft.js && node scripts/smoke-edge-tts.js && node scripts/smoke-google-dict.js",
+    "test:live": "node scripts/smoke-autoswap.js && node scripts/smoke-microsoft.js && node scripts/smoke-edge-tts.js && node scripts/smoke-google-dict.js && node scripts/smoke-bing-dict.js",
     "icon": "node scripts/svg2png.mjs C:\\Users\\CL\\Desktop\\default.svg"
   },
   "devDependencies": {
