@@ -101,7 +101,8 @@ npm run compile   # 或者 npm run watch
 
 ```bash
 npm test         # 单元+协议测试（131 用例，无需网络）：语言判定/换向决策/取词/存储/格式化/HTTP/代理/WebSocket/Webview一致性/命令分流/词典解析
-npm run test:live  # 真机集成测试（需网络）：微软引擎多方向翻译、自动换向全场景、Edge TTS、Google 词典释义+同义词
+npm run test:live  # 真机集成测试（需网络）：微软引擎多方向翻译、自动换向全场景、Edge TTS、Google/Bing 词典
+npm run test:host  # 真实扩展宿主测试（@vscode/test-electron，本机 VS Code 内跑真实链路）：译文/词典/词性/换向
 ```
 
 覆盖说明：`test/` 目录为离线测试，用本地 mock 服务器验证 HTTP 行为（重定向/超时/取消/代理 CONNECT 隧道）、WebSocket 帧编解码（掩码/分片/ping-pong）以及 Webview 的 HTML/JS 交叉一致性（元素 ID、消息分支、CSP、脚本语法防白屏）；`scripts/smoke-*.js` 为真实网络集成测试。新增功能请同步补充对应测试用例。

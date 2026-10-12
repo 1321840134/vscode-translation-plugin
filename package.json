@@ -421,12 +421,14 @@
     "watch": "tsc -watch -p ./",
     "test": "tsc -p ./ && node --test test/*.test.js",
     "test:live": "node scripts/smoke-autoswap.js && node scripts/smoke-microsoft.js && node scripts/smoke-edge-tts.js && node scripts/smoke-google-dict.js && node scripts/smoke-bing-dict.js",
-    "icon": "node scripts/svg2png.mjs C:\\Users\\CL\\Desktop\\default.svg"
+    "icon": "node scripts/svg2png.mjs C:\\Users\\CL\\Desktop\\default.svg",
+    "test:host": "node scripts/integration.js"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.75.0",
+    "@vscode/test-electron": "^3.1.0",
     "typescript": "^5.4.0"
   }
 }
