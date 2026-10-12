@@ -165,6 +165,20 @@ test('isWordQuery：单词与拆分后的多词短语均应查询词典', () => 
     assert.ok(!isWordQuery('a'.repeat(51)), '超长文本不查');
 });
 
+// ---- auto-detect 误判兜底判定 ----
+
+test('isUncommonDetection：冷门检测+纯拉丁文本判定为误判', () => {
+    const { isUncommonDetection } = require('../out/bing.js');
+    // cn.bing.com 把 put 误判为 sr-Latn（塞尔维亚语）的真实案例
+    assert.ok(isUncommonDetection('sr-Latn', 'put'), '冷门语言+拉丁词应判误判');
+    assert.ok(isUncommonDetection('sr-Latn', 'hello world'), '冷门语言+拉丁短语应判误判');
+    assert.ok(!isUncommonDetection('fr', 'bonjour'), '支持语言不判误判');
+    assert.ok(!isUncommonDetection('en', 'put'), 'en 不判误判');
+    assert.ok(!isUncommonDetection('zh-Hans', 'put'), 'zh 不判误判');
+    assert.ok(!isUncommonDetection('sr-Latn', '翻译'), '非拉丁文本不判误判（不重试）');
+    assert.ok(!isUncommonDetection('', 'put'), '无检测结果不判误判');
+});
+
 // ---- Bing 网页版词典鉴权解析（免密钥，对齐参考插件 BingTranslator） ----
 
 const BING_PAGE = [

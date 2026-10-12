@@ -1,4 +1,4 @@
-// 冒烟测试：微软翻译引擎（Edge 公开端点，无需密钥）
+// 冒烟测试：微软翻译引擎（Bing 网页版主路径 + Edge 端点回退，无需密钥）
 // 通过 vscode 桩加载编译后的真实引擎代码，执行真实翻译并断言结果
 const Module = require('module');
 const path = require('path');
@@ -45,7 +45,7 @@ async function main() {
     await microsoftEngine.translate('goodbye', 'auto', 'zh-CN');
     const cached = Date.now() - t1;
     console.log(`重复请求: 第二次翻译耗时 ${cached}ms`);
-    console.log('SMOKE OK: 微软翻译(Edge 端点)真实翻译通过');
+    console.log('SMOKE OK: 微软翻译(Bing 主路径)真实翻译通过');
 }
 
 main().catch(e => {

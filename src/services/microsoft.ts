@@ -1,5 +1,5 @@
 import * as config from '../config';
-import { bingLookupDictionary } from '../bing';
+import { bingLookupDictionary, bingTranslate, isUncommonDetection } from '../bing';
 import { request } from '../net';
 import { Definition, EngineError, TranslationEngine, TranslationResult, makeResult } from './types';
 
@@ -122,14 +122,48 @@ export const microsoftEngine: TranslationEngine = {
             return result;
         }
 
-        // Edge 免费端点：批量入参为字符串数组，from 留空即自动检测
+        // 免费路径（对齐参考插件 BingTranslator）：主走 Bing 网页版翻译+词典
+        // （与 IDEA 中"微软翻译"同源，译文与词典数据一致），失败回退 Edge 免费端点
+        try {
+            let translated = await bingTranslate(text, fromMs, toMs, signal);
+            let effectiveFromMs = fromMs;
+            // auto-detect 误判兜底：短英文词被 cn.bing.com 判为冷门语言（如 put → sr-Latn）
+            // 时按 en 重试；显式语言的结果不采信 detected，按实际查询语言标注
+            if (fromMs === '' && isUncommonDetection(translated.detected, text)) {
+                const retry = await bingTranslate(text, 'en', toMs, signal).catch(() => undefined);
+                if (retry) {
+                    translated = retry;
+                    effectiveFromMs = 'en';
+                }
+            }
+            const fromCanonical = effectiveFromMs
+                ? FROM_MS[effectiveFromMs] ?? effectiveFromMs
+                : FROM_MS[translated.detected] ?? (translated.detected || from);
+            const result = makeResult(microsoftEngine, text, fromCanonical, to, translated.text);
+            if (isWordQuery(text)) {
+                const dictFromMs = effectiveFromMs || (TO_MS[result.from] ?? result.from);
+                const defs = await bingLookupDictionary(
+                    text,
+                    result.text,
+                    dictFromMs,
+                    toMs,
+                    signal
+                ).catch(() => undefined);
+                if (defs && defs.length > 0) {
+                    result.definitions = defs;
+                }
+            }
+            return result;
+        } catch {
+            // Bing 不可用时回退 Edge 免费端点（译文可能略有差异，词典尽力而为）
+        }
+
         const url =
             `${EDGE_TRANSLATE_URL}?from=${encodeURIComponent(fromMs)}` +
             `&to=${encodeURIComponent(toMs)}&isEnterpriseClient=false`;
         const raw = await request(url, requestOptions);
         const result = parseTranslateResponse(raw, text, from, to);
-        // 免密钥词典增强（对齐参考插件 BingTranslator）：单词查询用 Bing 网页版
-        // 词典接口 tlookupv3 获取释义+同义词，失败静默降级为纯翻译
+        // 回退路径的词典增强：单词查询用 Bing 词典接口，失败静默降级为纯翻译
         if (isWordQuery(text)) {
             const detectedMs = TO_MS[result.from] ?? result.from;
             const defs = await bingLookupDictionary(

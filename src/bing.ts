@@ -11,6 +11,7 @@ import { parseMsDict } from './services/microsoft';
 
 const BING_ORIGIN = 'https://www.bing.com';
 const BING_TRANSLATOR_PAGE = `${BING_ORIGIN}/translator`;
+const BING_TRANSLATE_URL = `${BING_ORIGIN}/ttranslatev3`;
 const BING_DICT_URL = `${BING_ORIGIN}/tlookupv3`;
 
 const BING_UA =
@@ -67,6 +68,79 @@ async function getBingAuth(signal?: AbortSignal): Promise<BingAuth> {
 /** 清空鉴权缓存（token 失效后强制重新抓取） */
 export function clearBingAuthCache(): void {
     authCache = undefined;
+}
+
+/** 常见语言代码前缀（插件支持的语言集合） */
+const COMMON_LANG_BASES = new Set([
+    'en', 'zh', 'ja', 'ko', 'fr', 'de', 'ru', 'es', 'pt', 'it',
+    'ar', 'th', 'vi', 'id', 'ms', 'tr', 'nl', 'pl', 'sv'
+]);
+
+/**
+ * 判定 auto-detect 是否误判：检测结果不在支持语言集合内、且文本为纯拉丁
+ * （cn.bing.com 的 LLM 检测会把短英文词误判为冷门语言，如 put → sr-Latn）。
+ */
+export function isUncommonDetection(detected: string, text: string): boolean {
+    if (!detected) {
+        return false;
+    }
+    const base = detected.split('-')[0].toLowerCase();
+    if (COMMON_LANG_BASES.has(base)) {
+        return false;
+    }
+    return /^[A-Za-z\s'-]+$/.test(text.trim());
+}
+
+export interface BingTranslation {
+    /** 译文 */
+    text: string;
+    /** 检测到的源语言（Bing 代码，如 en / zh-Hans） */
+    detected: string;
+}
+
+/** 解析 ttranslatev3 响应（与 Edge translatetext 响应同构） */
+export function parseBingTranslation(items: unknown): BingTranslation {
+    const item = Array.isArray(items) ? (items[0] as {
+        detectedLanguage?: { language?: string };
+        translations?: { text?: string }[];
+    } | undefined) : undefined;
+    const text = item?.translations?.[0]?.text;
+    if (!text) {
+        throw new Error('Bing 翻译未返回译文');
+    }
+    return { text, detected: item?.detectedLanguage?.language ?? '' };
+}
+
+/**
+ * Bing 网页版翻译（对齐参考插件 BingTranslator 的主路径，免密钥）：
+ * fromMs 传空字符串表示 auto-detect。
+ */
+export async function bingTranslate(
+    text: string,
+    fromMs: string,
+    toMs: string,
+    signal?: AbortSignal
+): Promise<BingTranslation> {
+    const auth = await getBingAuth(signal);
+    const body = formPairsBody([
+        ['text', text],
+        ['fromLang', fromMs || 'auto-detect'],
+        ['to', toMs],
+        ['token', auth.token],
+        ['key', auth.key]
+    ]);
+    const url = `${BING_TRANSLATE_URL}?isVertical=1&IG=${auth.ig}&IID=${encodeURIComponent(auth.iid)}`;
+    const res = await request(url, {
+        method: 'POST',
+        headers: { 'Content-Type': FORM_CONTENT_TYPE, 'User-Agent': BING_UA },
+        body,
+        signal,
+        proxy: config.httpProxy()
+    });
+    if (res.status !== 200) {
+        throw new Error(`Bing 翻译请求失败 (HTTP ${res.status})`);
+    }
+    return parseBingTranslation(JSON.parse(res.buffer.toString('utf8')));
 }
 
 /**
