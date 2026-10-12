@@ -54,6 +54,10 @@ export function ttsService(): string {
     return cfg().get<string>('tts.service') ?? 'auto';
 }
 
+export async function setTtsService(id: string): Promise<void> {
+    await cfg().update('tts.service', id, vscode.ConfigurationTarget.Global);
+}
+
 export function openaiTtsModel(): string {
     return cfg().get<string>('tts.openaiModel') || 'gpt-4o-mini-tts';
 }

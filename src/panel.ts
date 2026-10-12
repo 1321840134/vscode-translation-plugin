@@ -19,6 +19,8 @@ export interface ResultView {
     definitions?: Definition[];
     starred: boolean;
     engineName: string;
+    /** 完整原文（文档注释翻译时携带，面板提供原文/译文切换） */
+    docSource?: string;
 }
 
 export function toResultView(r: TranslationResult): ResultView {
@@ -34,6 +36,9 @@ export function toResultView(r: TranslationResult): ResultView {
     };
     if (r.phonetic) {
         view.phonetic = r.phonetic;
+    }
+    if (r.docSource) {
+        view.docSource = r.docSource;
     }
     if (r.definitions && r.definitions.length > 0) {
         view.definitions = r.definitions;

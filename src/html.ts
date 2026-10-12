@@ -224,7 +224,7 @@ kbd {
         if (r.phonetic) { qline.appendChild(el('span', 'phon', '/' + r.phonetic + '/')); }
         var actions = el('div', 'actions');
         var bSrc = actionBtn('\\uD83D\\uDD0A', '朗读原文');
-        bSrc.onclick = function () { send('speak', { text: r.query, lang: r.from }); };
+        bSrc.onclick = function () { send('speak', { text: r.docSource || r.query, lang: r.from }); };
         var bTgt = actionBtn('\\uD83D\\uDD0A', '朗读译文');
         bTgt.onclick = function () { send('speak', { text: r.text, lang: r.to }); };
         var bStar = actionBtn(r.starred ? '\\u2605' : '\\u2606', r.starred ? '从单词本移除' : '加入单词本');
@@ -238,17 +238,31 @@ kbd {
         qline.appendChild(actions);
         qline.appendChild(el('span', 'langpair', r.fromName + ' → ' + r.toName + ' · ' + r.engineName));
         card.appendChild(qline);
-        card.appendChild(el('div', 'main', r.text));
+        var mainEl = el('div', 'main', r.text);
+        card.appendChild(mainEl);
+        var defsEl = null;
         if (r.definitions && r.definitions.length) {
-          var defs = el('div', 'defs');
+          defsEl = el('div', 'defs');
           for (var d = 0; d < r.definitions.length; d++) {
             var def = r.definitions[d];
             var line = el('div', 'def-line');
             if (def.pos) { line.appendChild(el('span', 'def-pos', def.pos)); }
             line.appendChild(el('span', 'def-terms', def.terms.join('；')));
-            defs.appendChild(line);
+            defsEl.appendChild(line);
           }
-          card.appendChild(defs);
+          card.appendChild(defsEl);
+        }
+        if (r.docSource) {
+          // 文档注释翻译：原文/译文切换（对齐参考插件的文档翻译 toggle）
+          var showingSource = false;
+          var bToggle = actionBtn('\\uD83D\\uDCC4', '查看完整原文');
+          bToggle.onclick = function () {
+            showingSource = !showingSource;
+            mainEl.textContent = showingSource ? r.docSource : r.text;
+            bToggle.title = showingSource ? '查看译文' : '查看完整原文';
+            if (defsEl) { defsEl.style.display = showingSource ? 'none' : ''; }
+          };
+          actions.appendChild(bToggle);
         }
         box.appendChild(card);
       })(lastResults[i]);

@@ -12,6 +12,8 @@ export interface TranslationResult {
     to: string;
     /** 主译文 */
     text: string;
+    /** 完整原文（文档注释翻译时携带，供面板"原文/译文"切换；query 为截断预览） */
+    docSource?: string;
     /** 原文音标/罗马音（仅词典类结果） */
     phonetic?: string;
     /** 分词性释义（仅词典类结果） */

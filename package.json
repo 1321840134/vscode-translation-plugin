@@ -2,7 +2,7 @@
   "name": "vscode-translation-plugin",
   "displayName": "Translation",
   "description": "强大的翻译插件：多引擎翻译(微软/Google/DeepL/OpenAI/有道/百度/阿里)、翻译替换、翻译文档、单词本、翻译历史、多引擎语音朗读、自动取词",
-  "version": "0.6.5",
+  "version": "0.7.0",
   "publisher": "vscode-translation-plugin",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -36,6 +36,18 @@
       {
         "command": "translation.translate",
         "title": "翻译: 翻译(选中文本或光标处单词)"
+      },
+      {
+        "command": "translation.translateWord",
+        "title": "翻译: 翻译光标处单词(忽略选区)"
+      },
+      {
+        "command": "translation.translateLine",
+        "title": "翻译: 翻译当前行(忽略选区)"
+      },
+      {
+        "command": "translation.translateClipboard",
+        "title": "翻译: 翻译剪贴板内容"
       },
       {
         "command": "translation.translateAndReplace",
@@ -101,6 +113,11 @@
         "when": "editorTextFocus"
       },
       {
+        "command": "translation.translateClipboard",
+        "key": "ctrl+alt+v",
+        "mac": "ctrl+cmd+b"
+      },
+      {
         "command": "translation.switchEngine",
         "key": "ctrl+alt+s",
         "mac": "ctrl+cmd+y"
@@ -120,19 +137,29 @@
           "group": "translation@1"
         },
         {
-          "command": "translation.translateAndReplace",
+          "command": "translation.translateWord",
           "when": "editorTextFocus",
           "group": "translation@2"
         },
         {
-          "command": "translation.translateDocument",
+          "command": "translation.translateLine",
           "when": "editorTextFocus",
           "group": "translation@3"
         },
         {
-          "command": "translation.translateDocComment",
+          "command": "translation.translateAndReplace",
           "when": "editorTextFocus",
           "group": "translation@4"
+        },
+        {
+          "command": "translation.translateDocument",
+          "when": "editorTextFocus",
+          "group": "translation@5"
+        },
+        {
+          "command": "translation.translateDocComment",
+          "when": "editorTextFocus",
+          "group": "translation@6"
         }
       ]
     },

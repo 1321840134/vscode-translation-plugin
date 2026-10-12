@@ -23,7 +23,51 @@ const BUILTIN_WORDS = [
 
 function errMessage(e: unknown): string {
     return e instanceof Error ? e.message : String(e);
-}async function translateSelectionsCommand(): Promise<void> {
+}
+
+/** 将编辑器选区设为指定范围（已是目标范围时跳过，避免触发多余的选区变更事件） */
+function selectRangeQuietly(editor: vscode.TextEditor, range: vscode.Range): void {
+    const current = editor.selection;
+    const alreadySelected =
+        !current.isEmpty && typeof current.isEqual === 'function' && current.isEqual(range);
+    if (!alreadySelected) {
+        editor.selection = new vscode.Selection(range.start, range.end);
+    }
+}
+
+/**
+ * 单词词典查询 → 面板词典卡片（右键翻译/强制取词/剪贴板共用）。
+ * 面板为持久 UI，不受鼠标移动影响，且与句子翻译路径统一。
+ */
+async function queryWordInPanel(wordQuery: string): Promise<void> {
+    try {
+        const result = await vscode.window.withProgress(
+            { location: vscode.ProgressLocation.Window, title: `正在查询词典: ${wordQuery.slice(0, 20)}` },
+            () => translateQuery(wordQuery, AUTO, config.targetLanguage())
+        );
+        showResultsInPanel([result]);
+    } catch (e) {
+        void vscode.window.showErrorMessage(`词典查询失败: ${errMessage(e)}`);
+    }
+}
+
+/** 文本翻译 → 面板（右键句子/整行翻译/剪贴板共用） */
+async function translateTextInPanel(text: string, from: string = config.sourceLanguage()): Promise<void> {
+    const to = config.targetLanguage();
+    await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Window, title: '正在翻译…' },
+        async () => {
+            try {
+                const result = await translateQuery(text, from, to);
+                showResultsInPanel([result]);
+            } catch (e) {
+                void vscode.window.showErrorMessage(`翻译失败: ${errMessage(e)}`);
+            }
+        }
+    );
+}
+
+async function translateSelectionsCommand(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
         showPanel({ focusInput: true });
@@ -32,7 +76,7 @@ function errMessage(e: unknown): string {
     const sel = editor.selection;
     const selText = sel && !sel.isEmpty ? editor.document.getText(sel).trim() : '';
 
-    // 单词级查询（选中单词或光标处取词）→ 词典 QuickPick
+    // 单词级查询（选中单词或光标处取词）→ 词典卡片
     // 划选文本同样经过智能拆分归一化（驼峰整词直接查引擎效果差）
     let wordRange: vscode.Range | undefined;
     let wordQuery: string | undefined;
@@ -47,25 +91,8 @@ function errMessage(e: unknown): string {
         }
     }
     if (wordRange && wordQuery) {
-        // 选区已是目标范围时不重复赋值：重复赋值会触发选区变更事件
-        const current = editor.selection;
-        const alreadySelected =
-            !current.isEmpty && typeof current.isEqual === 'function' && current.isEqual(wordRange);
-        if (!alreadySelected) {
-            editor.selection = new vscode.Selection(wordRange.start, wordRange.end);
-        }
-        // 预翻译后在翻译面板呈现词典卡片（含音标/分词性释义/朗读/收藏/复制）：
-        // 面板为持久 UI，不受鼠标移动影响（悬浮会被平台隐藏，QuickPick 排版差），
-        // 且与句子翻译路径统一
-        try {
-            const result = await vscode.window.withProgress(
-                { location: vscode.ProgressLocation.Window, title: `正在查询词典: ${wordQuery.slice(0, 20)}` },
-                () => translateQuery(wordQuery!, AUTO, config.targetLanguage())
-            );
-            showResultsInPanel([result]);
-        } catch (e) {
-            void vscode.window.showErrorMessage(`词典查询失败: ${errMessage(e)}`);
-        }
+        selectRangeQuietly(editor, wordRange);
+        await queryWordInPanel(wordQuery);
         return;
     }
 
@@ -73,29 +100,70 @@ function errMessage(e: unknown): string {
         showPanel({ focusInput: true });
         return;
     }
-    const queries = [selText];
-    const from = config.sourceLanguage();
-    const to = config.targetLanguage();
-    await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Window, title: '正在翻译…' },
-        async () => {
-            const results: TranslationResult[] = [];
-            const errors: string[] = [];
-            for (const q of queries) {
-                try {
-                    results.push(await translateQuery(q, from, to));
-                } catch (e) {
-                    errors.push(errMessage(e));
-                }
-            }
-            if (results.length > 0) {
-                showResultsInPanel(results);
-            }
-            if (errors.length > 0) {
-                void vscode.window.showErrorMessage(`翻译失败: ${errors[0]}`);
-            }
+    await translateTextInPanel(selText);
+}
+
+/**
+ * 强制取词（对齐参考插件 Translate(Exclusive)）：
+ * 忽略当前选区，仅翻译光标处单词——选区跨多个词/句子时也能只查光标词。
+ */
+async function translateWordCommand(): Promise<void> {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        showPanel({ focusInput: true });
+        return;
+    }
+    const word = wordAtPosition(editor.document, editor.selection.active);
+    if (!word) {
+        void vscode.window.showWarningMessage('光标处没有可识别的单词');
+        return;
+    }
+    selectRangeQuietly(editor, word.range);
+    await queryWordInPanel(word.query);
+}
+
+/**
+ * 整行翻译（对齐参考插件 Translate(Inclusive)）：
+ * 忽略当前选区，翻译光标所在行的完整内容。
+ */
+async function translateLineCommand(): Promise<void> {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        showPanel({ focusInput: true });
+        return;
+    }
+    const line = editor.document.lineAt(editor.selection.active.line).text.trim();
+    if (!line) {
+        void vscode.window.showWarningMessage('当前行没有可翻译的内容');
+        return;
+    }
+    await translateTextInPanel(line, AUTO);
+}
+
+/**
+ * 翻译剪贴板内容（参考插件"翻译文本组件"在 VSCode 的等价物）：
+ * 从任意位置复制文本后直接翻译查看，覆盖 IDE 外的取词场景。
+ */
+async function translateClipboardCommand(): Promise<void> {
+    let text = '';
+    try {
+        text = (await vscode.env.clipboard.readText()).trim();
+    } catch {
+        // 剪贴板不可用时按空内容处理
+    }
+    if (!text) {
+        void vscode.window.showWarningMessage('剪贴板中没有可翻译的文本');
+        return;
+    }
+    // 与右键翻译的判定一致：单个词走词典卡片，其余整段翻译（源语言自动检测）
+    if (text.length <= 40 && !/\s/.test(text)) {
+        const q = normalizeWordQuery(text);
+        if (q) {
+            await queryWordInPanel(q);
+            return;
         }
-    );
+    }
+    await translateTextInPanel(text, AUTO);
 }
 
 async function translateAndReplaceCommandSafe(): Promise<void> {
@@ -231,33 +299,69 @@ async function translateDocumentCommand(): Promise<void> {
     );
 }
 
+/** 语音引擎清单（translation.tts.service 的枚举，切换入口与翻译引擎合并） */
+const TTS_ENGINES: { id: string; name: string; hint: string }[] = [
+    { id: 'auto', name: '自动', hint: 'Edge 优先，失败自动回退 Google/OpenAI' },
+    { id: 'edge', name: 'Edge 神经语音', hint: '免费，无需配置' },
+    { id: 'google', name: 'Google 语音', hint: '免费，无需配置' },
+    { id: 'openai', name: 'OpenAI 语音', hint: '需配置 OpenAI API Key' }
+];
+
+/**
+ * 切换引擎（对齐参考插件：翻译引擎与语音引擎在同一入口切换）。
+ */
 async function switchEngineCommand(): Promise<void> {
     const current = config.engine();
-    const picks: { label: string; description: string; detail: string; id: string }[] = [
+    const currentTts = config.ttsService();
+    interface EnginePick extends vscode.QuickPickItem {
+        id: string;
+        cat: 'translation' | 'tts' | 'settings';
+    }
+    const picks: EnginePick[] = [
         {
-            label: '$(settings-gear) 打开当前引擎设置',
+            label: '$(settings-gear) 打开翻译引擎设置',
             description: '快速配置',
             detail: `跳转到 VSCode 设置: translation.${current}`,
-            id: '__open_settings__'
+            id: '__open_settings__',
+            cat: 'settings'
         },
-        ...ENGINES.map(e => ({
-            label: e.name,
-            description: e.id === current ? '$(check) 当前' : '',
-            detail: e.configHint ?? '免费，无需配置',
-            id: e.id
-        }))
+        ...ENGINES.map(
+            (e): EnginePick => ({
+                label: `$(globe) ${e.name}`,
+                description: `翻译引擎${e.id === current ? ' · $(check) 当前' : ''}`,
+                detail: e.configHint ?? '免费，无需配置',
+                id: e.id,
+                cat: 'translation'
+            })
+        ),
+        ...TTS_ENGINES.map(
+            (t): EnginePick => ({
+                label: `$(unmute) ${t.name}`,
+                description: `语音引擎${t.id === currentTts ? ' · $(check) 当前' : ''}`,
+                detail: t.hint,
+                id: `tts:${t.id}`,
+                cat: 'tts'
+            })
+        )
     ];
-    const picked = await vscode.window.showQuickPick(picks, { placeHolder: '选择翻译引擎' });
+    const picked = await vscode.window.showQuickPick(picks, {
+        placeHolder: '选择引擎（翻译 / 语音朗读）'
+    });
     if (!picked) {
         return;
     }
-    if (picked.id === '__open_settings__') {
+    if (picked.cat === 'settings') {
         await vscode.commands.executeCommand('workbench.action.openSettings', `translation.${current}`);
+        return;
+    }
+    if (picked.cat === 'tts') {
+        await config.setTtsService(picked.id.slice(4));
+        void vscode.window.showInformationMessage(`语音引擎已切换为 ${picked.label.replace('$(unmute) ', '')}`);
         return;
     }
     await config.setEngine(picked.id);
     updateStatusBar();
-    void vscode.window.showInformationMessage(`翻译引擎已切换为 ${picked.label}`);
+    void vscode.window.showInformationMessage(`翻译引擎已切换为 ${picked.label.replace('$(globe) ', '')}`);
 }
 
 async function pickLanguage(includeAuto: boolean, current: string): Promise<string | undefined> {
@@ -325,6 +429,9 @@ export function activate(context: vscode.ExtensionContext): void {
     const commands: [string, () => Promise<void> | void][] = [
         ['translation.showDialog', () => showPanel({ focusInput: true })],
         ['translation.translate', translateSelectionsCommand],
+        ['translation.translateWord', translateWordCommand],
+        ['translation.translateLine', translateLineCommand],
+        ['translation.translateClipboard', translateClipboardCommand],
         ['translation.translateAndReplace', translateAndReplaceCommandSafe],
         ['translation.translateDocument', translateDocumentCommand],
         ['translation.translateDocComment', translateDocCommentCommand],
@@ -390,11 +497,13 @@ async function translateDocCommentCommand(): Promise<void> {
             try {
                 const guarded = protectInlineTokens(docText.slice(0, 800));
                 const result = await translateQuery(guarded.text, AUTO, config.targetLanguage());
-                // query 使用还原后的原文（避免历史/面板显示占位符），历史由 showResultsInPanel 统一记录
-                const restored = {
+                // query 使用还原后的原文预览（避免历史/面板显示占位符），历史由 showResultsInPanel 统一记录；
+                // docSource 携带完整原文，面板卡片提供"原文/译文"切换（对齐参考插件的文档翻译 toggle）
+                const restored: TranslationResult = {
                     ...result,
                     query: docText.slice(0, 200),
-                    text: guarded.restore(result.text)
+                    text: guarded.restore(result.text),
+                    docSource: docText.slice(0, 800)
                 };
                 showResultsInPanel([restored]);
             } catch (e) {
