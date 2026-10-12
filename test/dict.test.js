@@ -154,6 +154,17 @@ test('webview：词典释义渲染支持逐条释义 + 同义词子行', () => {
     assert.ok(html.includes('.def-list'), '应有释义列表样式');
 });
 
+// ---- 词典查询判定（对齐参考插件：≤50 字符含字母，允许短语） ----
+
+test('isWordQuery：单词与拆分后的多词短语均应查询词典', () => {
+    const { isWordQuery } = require('../out/services/microsoft.js');
+    assert.ok(isWordQuery('put'), '单词应查词典');
+    assert.ok(isWordQuery('get user by name'), '驼峰拆分后的多词短语应查词典（右键翻译实际查询串）');
+    assert.ok(!isWordQuery(''), '空串不查');
+    assert.ok(!isWordQuery('123'), '纯数字不查');
+    assert.ok(!isWordQuery('a'.repeat(51)), '超长文本不查');
+});
+
 // ---- Bing 网页版词典鉴权解析（免密钥，对齐参考插件 BingTranslator） ----
 
 const BING_PAGE = [

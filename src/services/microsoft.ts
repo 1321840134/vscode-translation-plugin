@@ -147,9 +147,12 @@ export const microsoftEngine: TranslationEngine = {
     }
 };
 
-/** 词典查询只对单词级文本有意义（与右键词典路径的判定一致） */
-function isWordQuery(text: string): boolean {
-    return text.length <= 40 && !/\s/.test(text) && /\p{L}/u.test(text);
+/**
+ * 词典查询适用的文本判定（对齐参考插件：长度 ≤50、含字母即可，允许短语——
+ * 右键翻译的驼峰词经拆分后为多词串，同样应查询词典）。
+ */
+export function isWordQuery(text: string): boolean {
+    return text.length <= 50 && /\p{L}/u.test(text);
 }
 
 interface MsDictTranslation {
