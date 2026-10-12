@@ -227,7 +227,23 @@ export async function translateLong(
         // 受保护内联标签：{var}/<tag>/`code`/%s 翻译前占位、翻译后还原（v3.9.1 对齐）
         const guarded = protectInlineTokens(chunk);
         const r = await impl(guarded.text, from, to);
-        const restoredText = guarded.restore(r.text);
+        let restoredText = guarded.restore(r.text);
+        // 文档基础格式保留（v3.9.2 对齐）：若引擎丢失了行结构（行数不符，
+        // 百度等常跳过空行导致段落错位），退回逐行翻译并原样保留空行
+        const srcLines = guarded.text.split('\n');
+        if (srcLines.length > 1 && restoredText.split('\n').length !== srcLines.length) {
+            const outs: string[] = [];
+            for (let li = 0; li < srcLines.length; li++) {
+                const line = srcLines[li];
+                if (!line.trim()) {
+                    outs.push(line);
+                    continue;
+                }
+                const lr = await impl(line, from, to);
+                outs.push(guarded.restore(lr.text.replace(/\n+/g, ' ')));
+            }
+            restoredText = outs.join('\n');
+        }
         if (!head) {
             head = r;
             phonetic = r.phonetic;
