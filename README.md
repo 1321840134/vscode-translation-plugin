@@ -23,7 +23,7 @@
 - **翻译历史**：自动记录，支持搜索（含正则）、点击重译、删除、清空
 - **切换引擎**：快捷键/状态栏快速切换翻译引擎，同一入口还可切换语音朗读（TTS）引擎
 - **每日一词**：随机回顾单词本中的单词（为空时使用内置词库）
-- **词典结果**：单词查询时显示音标与分词性释义（Google/有道）
+- **词典结果**：单词查询时显示音标与分词性释义，每条释义附带同义词组（Google 免费；微软配置 Azure 密钥后走词典接口增强，与参考插件一致）
 
 ## 快捷键
 
@@ -61,7 +61,7 @@
 
 | 引擎 | 设置项 |
 | --- | --- |
-| 微软 | `translation.microsoft.subscriptionKey`、`translation.microsoft.region`（可选，不填则使用 Edge 免费端点） |
+| 微软 | `translation.microsoft.subscriptionKey`、`translation.microsoft.region`（可选，不填则使用 Edge 免费端点；配置后单词查询自动走 Azure 词典接口，呈现分词性释义+同义词组） |
 | Google | `translation.google.host`（默认官方域名，可改为镜像域名） |
 | DeepL | `translation.deepl.authKey`（免费版密钥以 `:fx` 结尾，自动识别） |
 | OpenAI | `translation.openai.apiKey`、`translation.openai.model`、`translation.openai.apiBase`（可配置兼容接口）；高级配置：`openai.systemPrompt`（自定义提示词，支持 `{sourceLang}/{targetLang}` 占位符）、`openai.temperature` |
@@ -100,8 +100,8 @@ npm run compile   # 或者 npm run watch
 **修改代码后必须完整跑过以下两步再打包发布**：
 
 ```bash
-npm test         # 单元+协议测试（121 用例，无需网络）：语言判定/换向决策/取词/存储/格式化/HTTP/代理/WebSocket/Webview一致性/命令分流
-npm run test:live  # 真机集成测试（需网络）：微软引擎多方向翻译、自动换向全场景、Edge TTS
+npm test         # 单元+协议测试（127 用例，无需网络）：语言判定/换向决策/取词/存储/格式化/HTTP/代理/WebSocket/Webview一致性/命令分流/词典解析
+npm run test:live  # 真机集成测试（需网络）：微软引擎多方向翻译、自动换向全场景、Edge TTS、Google 词典释义+同义词
 ```
 
 覆盖说明：`test/` 目录为离线测试，用本地 mock 服务器验证 HTTP 行为（重定向/超时/取消/代理 CONNECT 隧道）、WebSocket 帧编解码（掩码/分片/ping-pong）以及 Webview 的 HTML/JS 交叉一致性（元素 ID、消息分支、CSP、脚本语法防白屏）；`scripts/smoke-*.js` 为真实网络集成测试。新增功能请同步补充对应测试用例。

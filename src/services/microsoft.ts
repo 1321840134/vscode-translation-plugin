@@ -1,6 +1,6 @@
 import * as config from '../config';
 import { request } from '../net';
-import { EngineError, TranslationEngine, TranslationResult, makeResult } from './types';
+import { Definition, EngineError, TranslationEngine, TranslationResult, makeResult } from './types';
 
 /**
  * Edge 浏览器公开的免费翻译端点（与参考插件使用的方案一致，无需令牌/密钥）。
@@ -9,6 +9,7 @@ import { EngineError, TranslationEngine, TranslationResult, makeResult } from '.
  */
 const EDGE_TRANSLATE_URL = 'https://edge.microsoft.com/translate/translatetext';
 const AZURE_TRANSLATE_URL = 'https://api.cognitive.microsofttranslator.com/translate';
+const AZURE_DICT_URL = 'https://api.cognitive.microsofttranslator.com/dictionary/lookup';
 
 const TO_MS: Record<string, string> = {
     'zh-CN': 'zh-Hans',
@@ -100,7 +101,24 @@ export const microsoftEngine: TranslationEngine = {
                 `${AZURE_TRANSLATE_URL}?api-version=3.0` +
                 `&from=${encodeURIComponent(fromMs)}&to=${encodeURIComponent(toMs)}`;
             const raw = await request(url, requestOptions);
-            return parseTranslateResponse(raw, text, from, to);
+            const result = parseTranslateResponse(raw, text, from, to);
+            // 单词查询时用 Azure 词典接口增强（对齐参考插件的微软词典呈现：
+            // 分词性释义 + 每条释义的同义词/回译词），失败静默降级为纯翻译
+            const detectedMs = TO_MS[result.from] ?? result.from;
+            if (isWordQuery(text)) {
+                const definitions = await lookupDictionary(
+                    text,
+                    detectedMs,
+                    toMs,
+                    apiKey,
+                    config.microsoftRegion(),
+                    signal
+                );
+                if (definitions && definitions.length > 0) {
+                    result.definitions = definitions;
+                }
+            }
+            return result;
         }
 
         // Edge 免费端点：批量入参为字符串数组，from 留空即自动检测
@@ -111,3 +129,83 @@ export const microsoftEngine: TranslationEngine = {
         return parseTranslateResponse(raw, text, from, to);
     }
 };
+
+/** 词典查询只对单词级文本有意义（与右键词典路径的判定一致） */
+function isWordQuery(text: string): boolean {
+    return text.length <= 40 && !/\s/.test(text) && /\p{L}/u.test(text);
+}
+
+interface MsDictTranslation {
+    displayTarget?: string;
+    posTag?: string;
+    confidence?: number;
+    backTranslations?: { displayText?: string; frequencyCount?: number }[];
+}
+
+/**
+ * 解析 Azure dictionary/lookup 响应：按 confidence 取前若干条，
+ * 同词性聚合，backTranslations（按词频降序）作为每条释义的同义词组。
+ */
+export function parseMsDict(items: unknown): Definition[] {
+    if (!Array.isArray(items)) {
+        return [];
+    }
+    const translations = (items[0] as { translations?: MsDictTranslation[] } | undefined)?.translations ?? [];
+    const sorted = [...translations]
+        .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
+        .slice(0, 6);
+    const byPos = new Map<string, Definition>();
+    for (const t of sorted) {
+        const term = String(t.displayTarget ?? '').trim();
+        if (!term) {
+            continue;
+        }
+        const pos = String(t.posTag ?? '').toLowerCase();
+        const synonyms = (t.backTranslations ?? [])
+            .slice()
+            .sort((a, b) => (b.frequencyCount ?? 0) - (a.frequencyCount ?? 0))
+            .map(bt => String(bt.displayText ?? '').trim())
+            .filter(Boolean)
+            .slice(0, 8);
+        const def = byPos.get(pos) ?? { pos, terms: [], entries: [] };
+        def.terms.push(term);
+        def.entries?.push({ term, synonyms });
+        byPos.set(pos, def);
+    }
+    return [...byPos.values()].slice(0, 5);
+}
+
+/** 调用 Azure 词典接口；任何失败均静默返回 undefined（词典增强不阻塞翻译） */
+async function lookupDictionary(
+    text: string,
+    fromMs: string,
+    toMs: string,
+    apiKey: string,
+    region: string,
+    signal?: AbortSignal
+): Promise<Definition[] | undefined> {
+    if (!fromMs || !toMs) {
+        return undefined;
+    }
+    const body = JSON.stringify([{ Text: text }]);
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body).toString(),
+        'Ocp-Apim-Subscription-Key': apiKey
+    };
+    if (region) {
+        headers['Ocp-Apim-Subscription-Region'] = region;
+    }
+    try {
+        const url =
+            `${AZURE_DICT_URL}?api-version=3.0` +
+            `&from=${encodeURIComponent(fromMs)}&to=${encodeURIComponent(toMs)}`;
+        const raw = await request(url, { method: 'POST', headers, body, signal, proxy: config.httpProxy() });
+        if (raw.status !== 200) {
+            return undefined;
+        }
+        return parseMsDict(JSON.parse(raw.buffer.toString('utf8')));
+    } catch {
+        return undefined;
+    }
+}

@@ -65,6 +65,10 @@ textarea { width: 100%; resize: vertical; min-height: 60px; }
 .def-line { margin: 3px 0; }
 .def-pos { color: var(--vscode-charts-blue, #4fc1ff); font-style: italic; margin-right: 6px; }
 .def-terms { word-break: break-all; }
+.def-list { margin: 2px 0 2px 12px; }
+.def-item { margin: 3px 0; }
+.def-term { font-weight: 600; }
+.def-syn { color: var(--vscode-descriptionForeground); font-size: 12px; margin-top: 1px; word-break: break-all; }
 .list-item {
   padding: 6px 6px; border-bottom: 1px solid var(--vscode-panel-border, #333);
   display: flex; gap: 6px; align-items: center; cursor: pointer;
@@ -247,7 +251,22 @@ kbd {
             var def = r.definitions[d];
             var line = el('div', 'def-line');
             if (def.pos) { line.appendChild(el('span', 'def-pos', def.pos)); }
-            line.appendChild(el('span', 'def-terms', def.terms.join('；')));
+            if (def.entries && def.entries.length) {
+              // 词典数据带同义词组：逐条释义 + 同义词子行（对齐参考插件的词典呈现）
+              var dlist = el('div', 'def-list');
+              for (var x = 0; x < def.entries.length; x++) {
+                var en = def.entries[x];
+                var item = el('div', 'def-item');
+                item.appendChild(el('span', 'def-term', en.term));
+                if (en.synonyms && en.synonyms.length) {
+                  item.appendChild(el('div', 'def-syn', en.synonyms.join(', ')));
+                }
+                dlist.appendChild(item);
+              }
+              line.appendChild(dlist);
+            } else {
+              line.appendChild(el('span', 'def-terms', def.terms.join('；')));
+            }
             defsEl.appendChild(line);
           }
           card.appendChild(defsEl);

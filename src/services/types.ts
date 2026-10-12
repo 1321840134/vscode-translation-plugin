@@ -1,8 +1,17 @@
 
+export interface DictEntry {
+    /** 释义（目标语言的词/短语） */
+    term: string;
+    /** 该释义对应的同义词/回译词（源语言，按词频降序） */
+    synonyms: string[];
+}
+
 export interface Definition {
     /** 词性，如 noun / interjection，可能为空 */
     pos: string;
     terms: string[];
+    /** 分释义的同义词组（对齐参考插件的词典呈现） */
+    entries?: DictEntry[];
 }
 
 export interface TranslationResult {

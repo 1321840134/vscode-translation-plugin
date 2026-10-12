@@ -45,10 +45,15 @@ export function buildReplaceCandidates(result: TranslationResult): ReplaceCandid
     for (const part of result.text.split(/[;；、\n]/)) {
         push(part, '义项');
     }
-    // 2) 词典释义（各词性的候选词）
+    // 2) 词典释义（各词性的候选词）与每条释义的同义词组
     for (const def of result.definitions ?? []) {
         for (const term of def.terms) {
             push(term, def.pos ? `释义·${def.pos}` : '释义');
+        }
+        for (const entry of def.entries ?? []) {
+            for (const syn of entry.synonyms) {
+                push(syn, def.pos ? `同义词·${def.pos}` : '同义词');
+            }
         }
     }
     // 3) 命名风格变体（中文等非拉丁译文会被去重自动跳过）
