@@ -11,9 +11,13 @@ test('formatTranslated：英文命名风格', () => {
     assert.strictEqual(formatTranslated('get user info', 'camelCase', ' '), 'getUserInfo');
     assert.strictEqual(formatTranslated('get user info', 'PascalCase', ' '), 'GetUserInfo');
     assert.strictEqual(formatTranslated('get user info', 'snake_case', ' '), 'get_user_info');
+    assert.strictEqual(formatTranslated('get user info', 'UPPER_SNAKE_CASE', ' '), 'GET_USER_INFO');
     assert.strictEqual(formatTranslated('get user info', 'kebab-case', ' '), 'get-user-info');
     assert.strictEqual(formatTranslated('get user info', 'space', '_'), 'get_user_info');
     assert.strictEqual(formatTranslated('get user info', 'space', ''), 'getuserinfo');
+    assert.strictEqual(formatTranslated('get user info', 'Title', ' '), 'Get User Info');
+    assert.strictEqual(formatTranslated('get user info', 'lower', ' '), 'get user info');
+    assert.strictEqual(formatTranslated('get user info', 'UPPER', ' '), 'GET USER INFO');
 });
 
 test('formatTranslated：中文译文不做格式化', () => {

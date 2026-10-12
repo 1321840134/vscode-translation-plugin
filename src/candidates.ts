@@ -16,18 +16,27 @@ export interface ReplaceCandidate {
 export function buildReplaceCandidates(result: TranslationResult): ReplaceCandidate[] {
     const seen = new Set<string>();
     const out: ReplaceCandidate[] = [];
+    // 去重规则：
+    // - 语义候选（译文/义项/释义）：按小写键互斥，并登记精确键（阻止 Title/lower 等
+    //   与译文完全相同的变体重复出现）
+    // - 风格变体：仅按精确键去重（camelCase 与 PascalCase 仅大小写不同，均为有效候选）
     const push = (raw: string, description: string, exactMatch = false): void => {
         const text = raw.trim();
         if (!text) {
             return;
         }
-        // 风格变体用精确匹配去重（camelCase 与 PascalCase 仅大小写不同，均为有效候选），
-        // 语义候选用大小写不敏感去重
-        const key = exactMatch ? text : text.toLowerCase();
-        if (seen.has(key)) {
-            return;
+        if (exactMatch) {
+            if (seen.has(`=${text}`)) {
+                return;
+            }
+            seen.add(`=${text}`);
+        } else {
+            if (seen.has(`@${text.toLowerCase()}`) || seen.has(`=${text}`)) {
+                return;
+            }
+            seen.add(`@${text.toLowerCase()}`);
+            seen.add(`=${text}`);
         }
-        seen.add(key);
         out.push({ label: text, description });
     };
 
@@ -45,8 +54,12 @@ export function buildReplaceCandidates(result: TranslationResult): ReplaceCandid
     // 3) 命名风格变体（中文等非拉丁译文会被去重自动跳过）
     push(formatTranslated(result.text, 'camelCase', ''), 'camelCase', true);
     push(formatTranslated(result.text, 'PascalCase', ''), 'PascalCase', true);
-    push(formatTranslated(result.text, 'snake_case', ''), 'SNAKE_CASE', true);
+    push(formatTranslated(result.text, 'snake_case', ''), 'snake_case', true);
+    push(formatTranslated(result.text, 'UPPER_SNAKE_CASE', ''), 'UPPER_SNAKE_CASE', true);
     push(formatTranslated(result.text, 'kebab-case', ''), 'kebab-case', true);
     push(formatTranslated(result.text, 'space', ' '), 'SPACE', true);
+    push(formatTranslated(result.text, 'Title', ''), 'Title Case', true);
+    push(formatTranslated(result.text, 'lower', ''), 'lower case', true);
+    push(formatTranslated(result.text, 'UPPER', ''), 'UPPER CASE', true);
     return out;
 }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.4
+
+翻译并替换候选扩充命名风格变体（5 → 9 种）：
+- 新增 UPPER_SNAKE_CASE（常量命名）、Title Case、lower case、UPPER CASE
+- 修正 snake_case 变体的描述标签（原误标为 SNAKE_CASE）
+
+## 0.6.3
+
 ## 0.6.3
 
 对齐参考插件 v3.9.2（2026-10-11 发布）：

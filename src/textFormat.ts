@@ -28,11 +28,19 @@ export function formatTranslated(text: string, style: string, separator: string)
             return norm.map(cap).join('');
         case 'snake_case':
             return norm.join('_');
+        case 'UPPER_SNAKE_CASE':
+            return norm.join('_').toUpperCase();
         case 'kebab-case':
             return norm.join('-');
         case 'space':
             // 空分隔符 = 直接连接（config 层已保证未配置时使用默认空格）
             return norm.join(separator);
+        case 'lower':
+            return text.toLowerCase();
+        case 'UPPER':
+            return text.toUpperCase();
+        case 'Title':
+            return norm.map(cap).join(' ');
         default:
             return text;
     }
