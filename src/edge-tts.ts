@@ -12,9 +12,14 @@ const TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
 const CHROMIUM_FULL_VERSION = '143.0.3650.75';
 const SEC_MS_GEC_VERSION = `1-${CHROMIUM_FULL_VERSION}`;
 const ORIGIN = 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold';
+/**
+ * 2026-10 起旧域名(speech.platform.bing.com)的 WebSocket 合成返回 403（voices 列表仍在），
+ * Edge 155 起走 api.msedgeservices.com：同一 token 作为 Ocp-Apim-Subscription-Key 传入
+ * （对齐 edge-tts PR #491）。
+ */
 const WSS_URL =
-    'wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1' +
-    `?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}`;
+    'wss://api.msedgeservices.com/tts/cognitiveservices/websocket/v1' +
+    `?Ocp-Apim-Subscription-Key=${TRUSTED_CLIENT_TOKEN}`;
 
 /** 各语言默认音色（Neural 女声为主） */
 const VOICES: Record<string, string> = {

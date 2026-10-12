@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.5
+
+Edge TTS 修复（2026-10 微软服务端迁移）：
+- 合成端点迁移至 wss://api.msedgeservices.com/tts/cognitiveservices/websocket/v1（旧域名 2026-10 起 WS 合成 403，仅保留 voices 列表；对齐 edge-tts PR #491）
+- 真机验证恢复：中英文神经语音合成正常
+- 另：翻译并替换命名风格变体扩充至 9 种（UPPER_SNAKE_CASE/Title Case/lower/UPPER）并修复变体重复（见 0.6.4 说明，合并发布）
+
+## 0.6.4
+
 ## 0.6.4
 
 翻译并替换候选扩充命名风格变体（5 → 9 种）：
