@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import * as config from './config';
 import { buildReplaceCandidates } from './candidates';
@@ -451,10 +453,47 @@ async function diagnoseCommand(): Promise<void> {
     void vscode.window.showInformationMessage(message, '确定');
 }
 
+/**
+ * 激活时自动链路自检：后台用标准词 put 走真实翻译链路，结果写入
+ * globalStorage/diagnose.json（不弹窗、不进历史），供排障直接读取。
+ */
+function autoDiagnose(context: vscode.ExtensionContext): void {
+    void (async () => {
+        const entry: Record<string, unknown> = {
+            time: new Date().toISOString(),
+            version: '0.7.6',
+            engine: config.engine(),
+            tts: config.ttsService(),
+            proxy: config.httpProxy() ?? ''
+        };
+        try {
+            const r = await translateQuery('put', AUTO, config.targetLanguage());
+            entry.put = r.text;
+            entry.from = r.from;
+            entry.to = r.to;
+            entry.definitions = (r.definitions ?? []).length;
+            entry.definitionSample = (r.definitions ?? [])
+                .slice(0, 2)
+                .map(d => `[${d.pos}] ${d.terms.slice(0, 4).join(';')}`)
+                .join(' | ');
+        } catch (e) {
+            entry.error = e instanceof Error ? e.message : String(e);
+        }
+        try {
+            const dir = context.globalStorageUri.fsPath;
+            fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(path.join(dir, 'diagnose.json'), JSON.stringify(entry, null, 2), 'utf8');
+        } catch {
+            // 写盘失败不影响功能
+        }
+    })();
+}
+
 export function activate(context: vscode.ExtensionContext): void {
     storage.init(context);
     initStatusBar(context);
     showFirstRunGuide(context);
+    autoDiagnose(context);
 
     const commands: [string, () => Promise<void> | void][] = [
         ['translation.showDialog', () => showPanel({ focusInput: true })],
