@@ -62,6 +62,8 @@ async function getBingAuth(signal?: AbortSignal): Promise<BingAuth> {
     const auth = parseBingAuth(res.buffer.toString('utf8'));
     const ttl = Math.max(auth.ttlMs - 60_000, 60_000);
     authCache = { auth, expiresAt: Date.now() + ttl };
+    // 运行日志（扩展宿主日志可见），用于排查静默降级问题
+    console.log(`[translation] bing auth ok (iid=${auth.iid}, ttl=${Math.round(ttl / 1000)}s)`);
     return auth;
 }
 

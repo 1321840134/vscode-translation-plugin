@@ -421,6 +421,36 @@ async function wordOfTheDayCommand(): Promise<void> {
     );
 }
 
+/**
+ * 一键诊断：用标准词 put 走一遍真实查询路径，直接展示引擎路径结果。
+ * 用于快速判定"翻译结果/词典不符合预期"时问题出在哪一层。
+ */
+async function diagnoseCommand(): Promise<void> {
+    const lines: string[] = [];
+    lines.push(`引擎: ${config.engine()}（语音: ${config.ttsService()}）`);
+    await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Window, title: '正在诊断翻译链路…' },
+        async () => {
+            try {
+                const r = await translateQuery('put', AUTO, config.targetLanguage());
+                lines.push(`put → ${r.text}`);
+                lines.push(`检测语言: ${langName(r.from)} → ${langName(r.to)} · ${r.engineName}`);
+                lines.push(`词典条目: ${(r.definitions ?? []).length}`);
+                for (const d of (r.definitions ?? []).slice(0, 3)) {
+                    lines.push(`  [${d.pos}] ${d.terms.slice(0, 5).join('；')}`);
+                }
+                const ok = r.text === '放' && (r.definitions ?? []).length > 0;
+                lines.push(ok ? '✅ 与参考插件一致（Bing 主路径正常）' : '⚠️ 结果与预期不符，详见扩展宿主日志（帮助→切换开发人员工具/日志）');
+            } catch (e) {
+                lines.push(`查询失败: ${errMessage(e)}`);
+            }
+        }
+    );
+    const message = lines.join('\n');
+    console.log(`[translation][diagnose] ${message.replace(/\n/g, ' | ')}`);
+    void vscode.window.showInformationMessage(message, '确定');
+}
+
 export function activate(context: vscode.ExtensionContext): void {
     storage.init(context);
     initStatusBar(context);
@@ -442,7 +472,8 @@ export function activate(context: vscode.ExtensionContext): void {
         ['translation.showHistory', () => showPanel({ tab: 'history' })],
         ['translation.clearHistory', clearHistoryCommand],
         ['translation.exportWordBook', exportWordBook],
-        ['translation.wordOfTheDay', wordOfTheDayCommand]
+        ['translation.wordOfTheDay', wordOfTheDayCommand],
+        ['translation.diagnose', diagnoseCommand]
     ];
 
     for (const [id, handler] of commands) {

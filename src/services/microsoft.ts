@@ -130,6 +130,7 @@ export const microsoftEngine: TranslationEngine = {
             // auto-detect 误判兜底：短英文词被 cn.bing.com 判为冷门语言（如 put → sr-Latn）
             // 时按 en 重试；显式语言的结果不采信 detected，按实际查询语言标注
             if (fromMs === '' && isUncommonDetection(translated.detected, text)) {
+                console.log(`[translation] ms bing uncommon detection: ${translated.detected}, retry as en`);
                 const retry = await bingTranslate(text, 'en', toMs, signal).catch(() => undefined);
                 if (retry) {
                     translated = retry;
@@ -148,14 +149,21 @@ export const microsoftEngine: TranslationEngine = {
                     dictFromMs,
                     toMs,
                     signal
-                ).catch(() => undefined);
+                ).catch(e => {
+                    console.log(`[translation] ms bing dict failed: ${e instanceof Error ? e.message : String(e)}`);
+                    return undefined;
+                });
+                console.log(
+                    `[translation] ms bing path: "${text.slice(0, 20)}" → "${translated.text.slice(0, 20)}" (detected=${translated.detected}, dict=${defs?.length ?? 0})`
+                );
                 if (defs && defs.length > 0) {
                     result.definitions = defs;
                 }
             }
             return result;
-        } catch {
+        } catch (e) {
             // Bing 不可用时回退 Edge 免费端点（译文可能略有差异，词典尽力而为）
+            console.log(`[translation] ms bing translate failed, fallback to edge: ${e instanceof Error ? e.message : String(e)}`);
         }
 
         const url =
