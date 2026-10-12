@@ -75,9 +75,23 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         md.appendMarkdown('\n\n');
         md.appendText(wordResult.text);
         if (wordResult.definitions && wordResult.definitions.length > 0) {
+            // 词典呈现（对齐参考插件）：词性 + 逐条释义 + 每条释义的同义词组
             for (const def of wordResult.definitions.slice(0, 3)) {
                 md.appendMarkdown('\n\n');
-                md.appendText((def.pos ? `${def.pos}  ` : '') + def.terms.slice(0, 5).join('；'));
+                md.appendMarkdown(`*${def.pos}*`);
+                if (def.entries && def.entries.length > 0) {
+                    for (const entry of def.entries.slice(0, 6)) {
+                        md.appendMarkdown('\n\n');
+                        md.appendText(entry.term);
+                        if (entry.synonyms.length > 0) {
+                            md.appendMarkdown('  \n');
+                            md.appendText(entry.synonyms.join(', '));
+                        }
+                    }
+                } else {
+                    md.appendMarkdown('  ');
+                    md.appendText(def.terms.slice(0, 5).join('；'));
+                }
             }
         }
         md.appendMarkdown(

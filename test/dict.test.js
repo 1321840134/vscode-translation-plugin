@@ -93,14 +93,14 @@ const msDict = [
 test('parseMsDict：confidence 排序、同词性聚合、同义词按词频降序', () => {
     const defs = parseMsDict(msDict);
     assert.strictEqual(defs.length, 2);
-    const verb = defs.find(d => d.pos === 'verb');
-    assert.ok(verb, '应含 verb 词性组');
+    const verb = defs.find(d => d.pos === '动词');
+    assert.ok(verb, '应含动词词性组（posTag VERB 已映射为中文）');
     // confidence 排序：放置(0.8) 在 放(0.5) 前
     assert.deepStrictEqual(verb.terms, ['放置', '放']);
     assert.strictEqual(verb.entries.length, 2);
     // 同义词按 frequencyCount 降序：place(90000) > put(53349) > lay(300)
     assert.deepStrictEqual(verb.entries[0].synonyms, ['place', 'put', 'lay']);
-    const noun = defs.find(d => d.pos === 'noun');
+    const noun = defs.find(d => d.pos === '名词');
     assert.deepStrictEqual(noun.terms, ['推']);
 });
 
@@ -123,7 +123,7 @@ test('buildReplaceCandidates：词典同义词进入候选且去重', () => {
     const result = {
         query: 'put', from: 'en', to: 'zh-CN', text: '放', engineId: 'google', engineName: 'Google 翻译',
         definitions: [{
-            pos: 'verb',
+            pos: '动词',
             terms: ['放', '把'],
             entries: [
                 { term: '放', synonyms: ['place', 'lay'] },
@@ -139,7 +139,7 @@ test('buildReplaceCandidates：词典同义词进入候选且去重', () => {
     // 跨释义重复的同义词（place 出现两次）只保留一个
     assert.strictEqual(labels.filter(l => l === 'place').length, 1);
     // 描述标注来源
-    assert.ok(cands.some(c => c.label === 'place' && c.description === '同义词·verb'));
+    assert.ok(cands.some(c => c.label === 'place' && c.description === '同义词·动词'));
 });
 
 // ---- webview 渲染分支 ----

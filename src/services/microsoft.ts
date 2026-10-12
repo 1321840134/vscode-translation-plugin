@@ -197,6 +197,29 @@ export function isWordQuery(text: string): boolean {
     return text.length <= 50 && /\p{L}/u.test(text);
 }
 
+/** Bing/Azure 词典 posTag → 中文词性（对齐参考插件的词典显示） */
+const POS_ZH: Record<string, string> = {
+    VERB: '动词',
+    NOUN: '名词',
+    ADJECTIVE: '形容词',
+    ADVERB: '副词',
+    ADPOSITION: '介词',
+    CONJUNCTION: '连词',
+    DETERMINER: '限定词',
+    INTERJECTION: '感叹词',
+    NUMERAL: '数词',
+    PRONOUN: '代词',
+    PROPER_NOUN: '专有名词',
+    PARTICLE: '助词',
+    MODAL: '情态动词',
+    PREPOSITION: '介词',
+    OTHER: '其他'
+};
+
+function posToZh(posTag: string): string {
+    return POS_ZH[posTag.toUpperCase()] ?? posTag.toLowerCase();
+}
+
 interface MsDictTranslation {
     displayTarget?: string;
     posTag?: string;
@@ -222,7 +245,7 @@ export function parseMsDict(items: unknown): Definition[] {
         if (!term) {
             continue;
         }
-        const pos = String(t.posTag ?? '').toLowerCase();
+        const pos = posToZh(String(t.posTag ?? ''));
         const synonyms = (t.backTranslations ?? [])
             .slice()
             .sort((a, b) => (b.frequencyCount ?? 0) - (a.frequencyCount ?? 0))

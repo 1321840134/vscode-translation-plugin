@@ -4,12 +4,16 @@ import { Definition } from './services/types';
 import { parseMsDict } from './services/microsoft';
 
 /**
- * Bing 网页版词典（对齐参考插件 BingTranslator 的免密钥方案）：
- * 翻译页 HTML 中带有 IG/IID 与防滥用 token，用它们调用 /tlookupv3
- * 获取词典数据（响应与 Azure dictionary/lookup 同构）。
+ * Bing 网页版词典与翻译（对齐参考插件 BingTranslator 的免密钥方案）：
+ * 从翻译页 HTML 解析 IG/IID/防滥用 token，调用 ttranslatev3/tlookupv3。
+ *
+ * 网络层注意：使用 fetch（undici）而非 net.ts 的 http.request，且直连
+ * cn.bing.com（避开 www 的 302 重定向）。原因：VS Code 扩展宿主会对
+ * http/https 模块的请求强制注入系统代理（http.proxySupport 默认 override），
+ * 部分代理分流规则会导致 bing.com 请求失败而静默回退；fetch 栈不受注入。
  */
 
-const BING_ORIGIN = 'https://www.bing.com';
+const BING_ORIGIN = 'https://cn.bing.com';
 const BING_TRANSLATOR_PAGE = `${BING_ORIGIN}/translator`;
 const BING_TRANSLATE_URL = `${BING_ORIGIN}/ttranslatev3`;
 const BING_DICT_URL = `${BING_ORIGIN}/tlookupv3`;
@@ -45,24 +49,40 @@ export function parseBingAuth(html: string): BingAuth {
     return { ig, iid, token: abuse[2], key: abuse[1], ttlMs: Number(abuse[3]) };
 }
 
+async function fetchText(url: string, init: RequestInit, signal?: AbortSignal): Promise<{ status: number; text: string }> {
+    if (typeof fetch !== 'function') {
+        // 旧版 VS Code（Node < 18）无全局 fetch：回退 net.ts 的 http.request
+        const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
+        const res = await request(url, {
+            method: init.method ?? 'GET',
+            headers,
+            body: typeof init.body === 'string' ? init.body : undefined,
+            signal,
+            proxy: config.httpProxy()
+        });
+        return { status: res.status, text: res.buffer.toString('utf8') };
+    }
+    const res = await fetch(url, {
+        ...init,
+        signal: signal ?? AbortSignal.timeout(20_000)
+    });
+    return { status: res.status, text: await res.text() };
+}
+
 /** 获取 Bing 鉴权数据（带 TTL 缓存，参考插件同款 1 分钟安全边距） */
 async function getBingAuth(signal?: AbortSignal): Promise<BingAuth> {
     if (authCache && Date.now() < authCache.expiresAt) {
         return authCache.auth;
     }
-    const res = await request(BING_TRANSLATOR_PAGE, {
-        method: 'GET',
-        headers: { 'User-Agent': BING_UA },
-        signal,
-        proxy: config.httpProxy()
-    });
-    if (res.status !== 200) {
-        throw new Error(`Bing 翻译页获取失败 (HTTP ${res.status})`);
+    const { status, text } = await fetchText(BING_TRANSLATOR_PAGE, {
+        headers: { 'User-Agent': BING_UA }
+    }, signal);
+    if (status !== 200) {
+        throw new Error(`Bing 翻译页获取失败 (HTTP ${status})`);
     }
-    const auth = parseBingAuth(res.buffer.toString('utf8'));
+    const auth = parseBingAuth(text);
     const ttl = Math.max(auth.ttlMs - 60_000, 60_000);
     authCache = { auth, expiresAt: Date.now() + ttl };
-    // 运行日志（扩展宿主日志可见），用于排查静默降级问题
     console.log(`[translation] bing auth ok (iid=${auth.iid}, ttl=${Math.round(ttl / 1000)}s)`);
     return auth;
 }
@@ -91,6 +111,19 @@ export function isUncommonDetection(detected: string, text: string): boolean {
         return false;
     }
     return /^[A-Za-z\s'-]+$/.test(text.trim());
+}
+
+async function postForm(url: string, auth: BingAuth, params: [string, string][], signal?: AbortSignal): Promise<string> {
+    const body = formPairsBody([...params, ['token', auth.token], ['key', auth.key]]);
+    const { status, text } = await fetchText(url, {
+        method: 'POST',
+        headers: { 'Content-Type': FORM_CONTENT_TYPE, 'User-Agent': BING_UA },
+        body
+    }, signal);
+    if (status !== 200) {
+        throw new Error(`Bing 请求失败 (HTTP ${status})`);
+    }
+    return text;
 }
 
 export interface BingTranslation {
@@ -124,25 +157,13 @@ export async function bingTranslate(
     signal?: AbortSignal
 ): Promise<BingTranslation> {
     const auth = await getBingAuth(signal);
-    const body = formPairsBody([
+    const url = `${BING_TRANSLATE_URL}?isVertical=1&IG=${auth.ig}&IID=${encodeURIComponent(auth.iid)}`;
+    const raw = await postForm(url, auth, [
         ['text', text],
         ['fromLang', fromMs || 'auto-detect'],
-        ['to', toMs],
-        ['token', auth.token],
-        ['key', auth.key]
-    ]);
-    const url = `${BING_TRANSLATE_URL}?isVertical=1&IG=${auth.ig}&IID=${encodeURIComponent(auth.iid)}`;
-    const res = await request(url, {
-        method: 'POST',
-        headers: { 'Content-Type': FORM_CONTENT_TYPE, 'User-Agent': BING_UA },
-        body,
-        signal,
-        proxy: config.httpProxy()
-    });
-    if (res.status !== 200) {
-        throw new Error(`Bing 翻译请求失败 (HTTP ${res.status})`);
-    }
-    return parseBingTranslation(JSON.parse(res.buffer.toString('utf8')));
+        ['to', toMs]
+    ], signal);
+    return parseBingTranslation(JSON.parse(raw));
 }
 
 /**
@@ -160,24 +181,12 @@ export async function bingLookupDictionary(
         return undefined;
     }
     const auth = await getBingAuth(signal);
-    const body = formPairsBody([
+    const url = `${BING_DICT_URL}?isVertical=1&IG=${auth.ig}&IID=${encodeURIComponent(auth.iid)}`;
+    const raw = await postForm(url, auth, [
         ['from', fromMs],
         ['to', toMs],
         ['text', text],
-        ['translatedtext', translated],
-        ['token', auth.token],
-        ['key', auth.key]
-    ]);
-    const url = `${BING_DICT_URL}?isVertical=1&IG=${auth.ig}&IID=${encodeURIComponent(auth.iid)}`;
-    const res = await request(url, {
-        method: 'POST',
-        headers: { 'Content-Type': FORM_CONTENT_TYPE, 'User-Agent': BING_UA },
-        body,
-        signal,
-        proxy: config.httpProxy()
-    });
-    if (res.status !== 200) {
-        throw new Error(`Bing 词典查询失败 (HTTP ${res.status})`);
-    }
-    return parseMsDict(JSON.parse(res.buffer.toString('utf8')));
+        ['translatedtext', translated]
+    ], signal);
+    return parseMsDict(JSON.parse(raw));
 }

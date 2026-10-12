@@ -100,7 +100,7 @@ npm run compile   # 或者 npm run watch
 **修改代码后必须完整跑过以下两步再打包发布**：
 
 ```bash
-npm test         # 单元+协议测试（127 用例，无需网络）：语言判定/换向决策/取词/存储/格式化/HTTP/代理/WebSocket/Webview一致性/命令分流/词典解析
+npm test         # 单元+协议测试（131 用例，无需网络）：语言判定/换向决策/取词/存储/格式化/HTTP/代理/WebSocket/Webview一致性/命令分流/词典解析
 npm run test:live  # 真机集成测试（需网络）：微软引擎多方向翻译、自动换向全场景、Edge TTS、Google 词典释义+同义词
 ```
 
